@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  razum-miner:
+    image: therazum/miner:latest
+    container_name: razum-miner
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - WALLET_ADDRESS=${WALLET_ADDRESS}
+      - NODE_NAME=${NODE_NAME:-razum-node}
+      - MAX_CONCURRENT_TASKS=${MAX_CONCURRENT_TASKS:-3}
+      - MODELS=${MODELS:-deepseek-r1:14b,mistral:7b}
+      - COORDINATOR_URL=https://api.airazum.com/v1
+      - MIN_REWARD=${MIN_REWARD:-0.05}
+    ports:
+      - "8080:8080"
+    volumes:
+      - miner-data:/data
+      - miner-models:/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  miner-data:
+  miner-models:

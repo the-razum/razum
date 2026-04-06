@@ -1,0 +1,24 @@
+{
+  "name": "Razum AI",
+  "short_name": "Razum",
+  "description": "AI-ассистент с поиском в интернете. Без VPN, без цензуры.",
+  "start_url": "/chat",
+  "display": "standalone",
+  "background_color": "#06080d",
+  "theme_color": "#00e59b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

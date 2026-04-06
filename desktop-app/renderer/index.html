@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Razum AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #06080d;
+      --surface: #0d1117;
+      --surface2: #161b22;
+      --border: #21262d;
+      --text: #e6edf3;
+      --text2: #7d8590;
+      --accent: #00e59b;
+      --accent2: #00c07f;
+      --red: #f85149;
+      --yellow: #d29922;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+    button, input, textarea, select, a { -webkit-app-region: no-drag; }
+
+    /* Layout */
+    .app { display: flex; height: 100vh; }
+    .sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding-top: 38px; /* для titlebar на macOS */
+    }
+    .main { flex: 1; display: flex; flex-direction: column; padding-top: 38px; }
+
+    /* Sidebar */
+    .sidebar-logo {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .sidebar-logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .sidebar-nav { flex: 1; padding: 8px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 14px;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--surface2); color: var(--accent); }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-dot.green { background: var(--accent); }
+    .status-dot.red { background: var(--red); }
+    .status-dot.yellow { background: var(--yellow); }
+
+    /* Pages */
+    .page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .page.active { display: flex; }
+    .page-header { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+    .page-header h2 { font-size: 18px; font-weight: 600; }
+    .page-content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* Chat */
+    .chat-messages { flex: 1; overflow-y: auto; padding: 24px; }
+    .chat-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text2); }
+    .chat-empty .logo { font-size: 48px; opacity: 0.15; margin-bottom: 16px; font-weight: 700; }
+    .msg { margin-bottom: 20px; max-width: 720px; margin-left: auto; margin-right: auto; }
+    .msg-user { display: flex; justify-content: flex-end; }
+    .msg-user .bubble { background: var(--surface2); border-radius: 16px 16px 4px 16px; padding: 10px 16px; max-width: 80%; font-size: 14px; line-height: 1.5; }
+    .msg-ai { display: flex; gap: 12px; }
+    .msg-ai .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(0,229,155,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent); font-size: 12px; font-weight: 700; }
+    .msg-ai .content { font-size: 14px; line-height: 1.6; flex: 1; }
+    .chat-input-wrap { padding: 16px 24px; border-top: 1px solid var(--border); }
+    .chat-input-box { max-width: 720px; margin: 0 auto; position: relative; }
+    .chat-input {
+      width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 48px 12px 16px; color: var(--text); font-size: 14px; resize: none;
+      outline: none; font-family: inherit;
+    }
+    .chat-input:focus { border-color: rgba(0,229,155,0.4); }
+    .chat-input::placeholder { color: var(--text2); }
+    .chat-send {
+      position: absolute; right: 8px; bottom: 8px; width: 32px; height: 32px;
+      border-radius: 8px; background: var(--accent); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; color: var(--bg);
+      transition: opacity 0.15s;
+    }
+    .chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
+    .chat-send svg { width: 16px; height: 16px; }
+    .model-badge {
+      text-align: center; font-size: 12px; color: var(--text2); margin-top: 8px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; margin-bottom: 16px;
+    }
+    .card h3 { font-size: 15px; margin-bottom: 12px; }
+    .card .label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+    .card .value { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer;
+      transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { background: var(--border); }
+    .btn-accent { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+    .btn-accent:hover { background: var(--accent2); }
+    .btn-red { border-color: var(--red); color: var(--red); }
+    .btn-red:hover { background: rgba(248,81,73,0.1); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+    /* Models grid */
+    .models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .model-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .model-card .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .model-card .meta { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+    .model-card .actions { display: flex; gap: 8px; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .stat-card .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+    .stat-card .stat-value { font-size: 24px; font-weight: 700; }
+    .stat-card .stat-value.green { color: var(--accent); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <span class="dot"></span> Razum AI
+      </div>
+      <div class="sidebar-nav">
+        <button class="nav-item active" data-page="chat" onclick="showPage('chat')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+          Чат
+        </button>
+        <button class="nav-item" data-page="models" onclick="showPage('models')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          Модели
+        </button>
+        <button class="nav-item" data-page="wallet" onclick="showPage('wallet')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          Кошелёк
+        </button>
+        <button class="nav-item" data-page="mining" onclick="showPage('mining')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+          Майнинг
+        </button>
+        <button class="nav-item" data-page="settings" onclick="showPage('settings')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Настройки
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <span class="status-dot green" id="statusDot"></span>
+        <span id="statusText">Загрузка...</span>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+
+      <!-- Chat Page -->
+      <div class="page active" id="page-chat">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty">
+            <div class="logo">R</div>
+            <p style="font-size:16px;margin-bottom:4px">Напишите что-нибудь</p>
+            <p style="font-size:13px" id="chatModelInfo">Razum AI ответит, используя Mistral 7B</p>
+          </div>
+        </div>
+        <div class="chat-input-wrap">
+          <div class="chat-input-box">
+            <textarea class="chat-input" id="chatInput" placeholder="Спросите что-нибудь..." rows="1"></textarea>
+            <button class="chat-send" id="chatSend" onclick="sendMessage()">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+          <div class="model-badge">Razum AI — open-source модели. Ответы могут быть неточными.</div>
+        </div>
+      </div>
+
+      <!-- Models Page -->
+      <div class="page" id="page-models">
+        <div class="page-header"><h2>Модели</h2></div>
+        <div class="page-content">
+          <h3 style="margin-bottom:12px;font-size:14px;color:var(--text2)">Установленные</h3>
+          <div id="installedModels" class="models-grid" style="margin-bottom:24px"></div>
+          <h3 style="margin-bottom:12px;font-size:14px;color:var(--text2)">Доступные для скачивания</h3>
+          <div class="models-grid" id="availableModels"></div>
+        </div>
+      </div>
+
+      <!-- Wallet Page -->
+      <div class="page" id="page-wallet">
+        <div class="page-header"><h2>Кошелёк RZM</h2></div>
+        <div class="page-content" id="walletContent"></div>
+      </div>
+
+      <!-- Mining Page -->
+      <div class="page" id="page-mining">
+        <div class="page-header"><h2>Майнинг</h2></div>
+        <div class="page-content" id="miningContent"></div>
+      </div>
+
+      <!-- Settings Page -->
+      <div class="page" id="page-settings">
+        <div class="page-header"><h2>Настройки</h2></div>
+        <div class="page-content" id="settingsContent"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Razum AI — Децентрализованный разум для всех</title>
+<meta name="description" content="Razum — AI как ChatGPT за 490 ₽. Без VPN, без цензуры. Оплата картой МИР и СБП. Зарабатывай на своей видеокарте.">
+
+<!-- Open Graph / Social -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Razum AI — Децентрализованный разум для всех">
+<meta property="og:description" content="ChatGPT за 490 ₽. Без VPN. Без цензуры. Оплата картой МИР и СБП. Зарабатывай на своей видеокарте.">
+<meta property="og:image" content="/og-image.png">
+<meta property="og:url" content="https://airazum.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Razum AI — Децентрализованный разум для всех">
+<meta name="twitter:description" content="ChatGPT за 490 ₽. Без VPN. Без цензуры. Оплата картой МИР и СБП.">
+
+<!-- Favicon -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2306080d'/><text y='.9em' x='50' font-size='80' text-anchor='middle'>⛓️</text></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #06080d;
+  --surface: #0d1017;
+  --surface2: #141820;
+  --border: #1c2130;
+  --text: #e2e8f0;
+  --text2: #8294a8;
+  --accent: #00e59b;
+  --accent2: #00c4ff;
+  --accent-dim: rgba(0,229,155,0.08);
+  --font: 'Instrument Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* --- Grain overlay --- */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+/* --- NAV --- */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(6,8,13,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+}
+nav .inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 18px; color: var(--text);
+}
+.logo-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+nav .links { display: flex; gap: 28px; align-items: center; }
+nav .links a {
+  color: var(--text2); font-size: 14px; font-weight: 500;
+  transition: color 0.2s;
+}
+nav .links a:hover { color: var(--text); text-decoration: none; }
+.btn-nav {
+  background: var(--accent); color: var(--bg) !important;
+  padding: 8px 20px; border-radius: 8px; font-weight: 600; font-size: 13px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-nav:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,229,155,0.3); text-decoration: none !important; }
+
+/* --- HERO --- */
+.hero {
+  padding: 160px 24px 100px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 800px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,229,155,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,229,155,0.15);
+  border-radius: 100px; padding: 6px 18px 6px 12px;
+  font-size: 13px; color: var(--accent);
+  font-family: var(--mono); font-weight: 500;
+  margin-bottom: 32px;
+  animation: fadeDown 0.8s ease;
+}
+.hero-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s infinite;
+}
+h1 {
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px;
+  animation: fadeDown 0.8s ease 0.1s both;
+}
+h1 .gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+  font-size: clamp(16px, 2.5vw, 20px);
+  color: var(--text2); max-width: 600px; margin: 0 auto 40px;
+  line-height: 1.6;
+  animation: fadeDown 0.8s ease 0.2s both;
+}
+.hero-cta {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  animation: fadeDown 0.8s ease 0.3s both;
+}
+.btn-primary {
+  background: var(--accent); color: var(--bg);
+  padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600;
+  border: none; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,229,155,0.25); }
+.btn-secondary {
+  background: var(--surface2); color: var(--text);
+  padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600;
+  border: 1px solid var(--border); cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Stats bar */
+.stats-bar {
+  display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+  margin-top: 80px; padding-top: 40px;
+  border-top: 1px solid var(--border);
+  animation: fadeDown 0.8s ease 0.4s both;
+}
+.stat { text-align: center; }
+.stat-value {
+  font-size: 32px; font-weight: 700; color: var(--accent);
+  font-family: var(--mono);
+}
+.stat-label { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+/* --- SECTIONS --- */
+section { padding: 100px 24px; }
+.section-label {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700; letter-spacing: -0.02em;
+  margin-bottom: 16px; line-height: 1.15;
+}
+.section-desc {
+  font-size: 17px; color: var(--text2);
+  max-width: 600px; margin-bottom: 48px;
+}
+
+/* Problem section */
+.problems {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.problem-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px;
+  transition: border-color 0.3s, transform 0.3s;
+}
+.problem-card:hover { border-color: rgba(0,229,155,0.3); transform: translateY(-2px); }
+.problem-icon { font-size: 28px; margin-bottom: 14px; }
+.problem-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.problem-text { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+/* How it works */
+.steps {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px; counter-reset: step;
+}
+.step {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 32px 24px;
+  counter-increment: step;
+}
+.step::before {
+  content: counter(step);
+  position: absolute; top: -14px; left: 24px;
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: var(--bg); font-weight: 700; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+}
+.step-icon { font-size: 32px; margin-bottom: 16px; display: block; }
+.step-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.step-text { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+/* Architecture */
+.arch-layers { display: flex; flex-direction: column; gap: 8px; max-width: 700px; }
+.arch-layer {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 20px;
+  transition: all 0.3s;
+}
+.arch-layer:hover { border-color: rgba(0,229,155,0.3); }
+.arch-num {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: var(--bg);
+  font-family: var(--mono); flex-shrink: 0;
+}
+.arch-name { font-weight: 600; font-size: 15px; }
+.arch-desc { font-size: 13px; color: var(--text2); }
+
+/* Pricing */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.plan {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px; padding: 32px 28px;
+  position: relative; transition: all 0.3s;
+}
+.plan:hover { transform: translateY(-3px); }
+.plan.featured {
+  border-color: rgba(0,229,155,0.4);
+  background: linear-gradient(180deg, rgba(0,229,155,0.04), var(--surface));
+}
+.plan-badge {
+  position: absolute; top: -11px; right: 20px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: var(--bg); font-size: 11px; font-weight: 700;
+  padding: 4px 12px; border-radius: 6px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.plan-name { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.plan-price {
+  font-size: 42px; font-weight: 700; color: var(--accent);
+  font-family: var(--mono); margin-bottom: 4px;
+}
+.plan-price span { font-size: 16px; color: var(--text2); font-weight: 400; }
+.plan-desc { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+.plan-features { list-style: none; margin-bottom: 28px; }
+.plan-features li {
+  font-size: 14px; padding: 6px 0; color: var(--text2);
+  display: flex; align-items: center; gap: 8px;
+}
+.plan-features li::before {
+  content: '✓'; color: var(--accent); font-weight: 700; font-size: 13px;
+}
+.plan-btn {
+  width: 100%; padding: 12px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; border: none;
+}
+.plan-btn-primary { background: var(--accent); color: var(--bg); }
+.plan-btn-primary:hover { box-shadow: 0 4px 20px rgba(0,229,155,0.3); }
+.plan-btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.plan-btn-secondary:hover { border-color: var(--accent); }
+
+/* Comparison */
+.comparison {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px; overflow: hidden; margin-top: 48px;
+}
+.comparison table { width: 100%; border-collapse: collapse; }
+.comparison th, .comparison td {
+  padding: 14px 20px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.comparison th {
+  font-size: 12px; color: var(--text2); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 1px;
+  background: var(--surface2);
+}
+.comparison td:first-child { font-weight: 500; }
+.comparison .highlight { color: var(--accent); font-weight: 600; }
+
+/* Waitlist / CTA */
+.cta-section {
+  text-align: center;
+  background: linear-gradient(180deg, var(--bg), var(--surface));
+  border-top: 1px solid var(--border);
+}
+.waitlist-form {
+  display: flex; gap: 10px; max-width: 460px;
+  margin: 0 auto; flex-wrap: wrap; justify-content: center;
+}
+.waitlist-input {
+  flex: 1; min-width: 240px; padding: 14px 20px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 15px;
+  font-family: var(--font); outline: none;
+  transition: border-color 0.2s;
+}
+.waitlist-input:focus { border-color: var(--accent); }
+.waitlist-input::placeholder { color: #4a5568; }
+.waitlist-count {
+  margin-top: 16px; font-size: 13px; color: var(--text2);
+  font-family: var(--mono);
+}
+.waitlist-count strong { color: var(--accent); }
+
+/* FAQ */
+.faq-list { max-width: 700px; }
+.faq-item {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+}
+.faq-q {
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.faq-q::after { content: '+'; font-size: 20px; color: var(--text2); }
+.faq-a {
+  font-size: 14px; color: var(--text2); line-height: 1.7;
+  margin-top: 12px; display: none;
+}
+.faq-item.open .faq-a { display: block; }
+.faq-item.open .faq-q::after { content: '−'; }
+
+/* Footer */
+footer {
+  padding: 40px 24px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.footer-links {
+  display: flex; gap: 24px; justify-content: center;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.footer-links a { color: var(--text2); font-size: 13px; }
+.footer-copy { font-size: 12px; color: #3a4250; }
+
+/* Animations */
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+
+/* Scroll animations */
+.reveal {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* Mobile */
+@media (max-width: 768px) {
+  nav .links { display: none; }
+  .stats-bar { gap: 24px; }
+  .stat-value { font-size: 24px; }
+  .comparison { overflow-x: auto; }
+  .comparison table { min-width: 500px; }
+  .hero { padding: 130px 24px 60px; }
+  section { padding: 60px 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="inner">
+    <div class="logo">
+      <div class="logo-icon">⛓️</div>
+      Razum
+    </div>
+    <div class="links">
+      <a href="#problem">Проблема</a>
+      <a href="#features">Возможности</a>
+      <a href="#how">Как работает</a>
+      <a href="#pricing">Цены</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://airazum.com/chat" class="btn-nav">Попробовать</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Сеть активна · 847 GPU-нод онлайн
+    </div>
+    <h1>
+      AI-вычисления,<br>
+      которые <span class="gradient">принадлежат всем</span>
+    </h1>
+    <p class="hero-sub">
+      80% качества ChatGPT за 490 ₽ вместо 1 800 ₽. Без VPN. Без цензуры.
+      Оплата картой МИР и СБП. Работает на тысячах GPU по всему миру.
+    </p>
+    <div class="hero-cta">
+      <a href="https://airazum.com/chat" class="btn-primary" style="text-decoration:none;">
+        Попробовать бесплатно
+      </a>
+      <button class="btn-secondary" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">
+        Как это работает
+      </button>
+    </div>
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-value">847</div>
+        <div class="stat-label">GPU-нод в сети</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">2.4M</div>
+        <div class="stat-label">AI-задач выполнено</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">−47%</div>
+        <div class="stat-label">Дешевле облака</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">0.8s</div>
+        <div class="stat-label">Среднее время ответа</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Проблема</div>
+      <div class="section-title">AI стал заложником<br>корпораций</div>
+      <div class="section-desc">
+        Три компании контролируют 80% мировых GPU-мощностей для AI. 
+        Это создаёт проблемы для всех.
+      </div>
+    </div>
+    <div class="problems reveal">
+      <div class="problem-card">
+        <div class="problem-icon">💸</div>
+        <div class="problem-title">Дорого</div>
+        <div class="problem-text">
+          Один час GPU H100 на AWS стоит $3+. Обучение модели — десятки тысяч долларов.
+          Стартапы и исследователи не могут себе это позволить.
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">⏳</div>
+        <div class="problem-title">Очереди</div>
+        <div class="problem-text">
+          Спрос на GPU превышает предложение. Ожидание мощных GPU — недели и месяцы.
+          Проекты откладываются, идеи устаревают.
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🔒</div>
+        <div class="problem-title">Зависимость</div>
+        <div class="problem-text">
+          Vendor lock-in, закрытые API, возможность отключить доступ в любой момент.
+          Ваш AI-бизнес зависит от решения одной компании.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" style="background: var(--surface);">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Возможности</div>
+      <div class="section-title">Умнее, чем вы думаете</div>
+      <div class="section-desc">
+        Razum AI — не просто чат. Это полноценный AI-ассистент с доступом в интернет и продвинутыми моделями.
+      </div>
+    </div>
+    <div class="problems reveal">
+      <div class="problem-card">
+        <div class="problem-icon">🧠</div>
+        <div class="problem-title">DeepSeek R1 14B</div>
+        <div class="problem-text">
+          Мощная модель с глубоким рассуждением. Решает задачи по математике,
+          программированию, анализу — на уровне GPT-4 по многим бенчмаркам.
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🌐</div>
+        <div class="problem-title">Поиск в интернете</div>
+        <div class="problem-text">
+          AI автоматически ищет свежую информацию: курсы валют, новости, погоду.
+          Отвечает с актуальными данными, а не устаревшими знаниями.
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🖥️</div>
+        <div class="problem-title">Веб + Desktop + Mobile</div>
+        <div class="problem-text">
+          Используйте через браузер, десктоп-приложение (Electron)
+          или мобильное приложение. Все платформы — один аккаунт.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background: var(--surface);">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Решение</div>
+      <div class="section-title">Как работает Razum</div>
+      <div class="section-desc">
+        Платите подписку картой — как за Netflix. Под капотом ваши задачи 
+        считает распределённая сеть GPU по всему миру.
+      </div>
+    </div>
+    <div class="steps reveal">
+      <div class="step">
+        <span class="step-icon">💬</span>
+        <div class="step-title">Отправьте запрос</div>
+        <div class="step-text">
+          Через сайт, приложение или API. Чат с AI, генерация картинок, 
+          обучение моделей — всё в одном месте.
+        </div>
+      </div>
+      <div class="step">
+        <span class="step-icon">🔀</span>
+        <div class="step-title">Сеть находит GPU</div>
+        <div class="step-text">
+          Координатор за 0.1 сек подбирает ближайшую ноду с нужной моделью.
+          Горячие ноды держат модели в памяти для мгновенного ответа.
+        </div>
+      </div>
+      <div class="step">
+        <span class="step-icon">⚡</span>
+        <div class="step-title">GPU считает</div>
+        <div class="step-text">
+          Видеокарта выполняет задачу. Ответ стримится посимвольно — 
+          первое слово через 0.5–1 секунду, как в ChatGPT.
+        </div>
+      </div>
+      <div class="step">
+        <span class="step-icon">🛡️</span>
+        <div class="step-title">Результат проверен</div>
+        <div class="step-text">
+          Система Proof-of-Useful-Compute проверяет честность ноды.
+          Жульничество = потеря стейка. Вы получаете гарантированный результат.
+        </div>
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div style="margin-top: 64px;" class="reveal">
+      <div class="section-label">Архитектура</div>
+      <div class="section-title" style="font-size: 24px; margin-bottom: 24px;">Четыре слоя системы</div>
+      <div class="arch-layers">
+        <div class="arch-layer">
+          <div class="arch-num">4</div>
+          <div>
+            <div class="arch-name">Приложения</div>
+            <div class="arch-desc">Сайт · Мобильное приложение · API · SDK</div>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <div class="arch-num">3</div>
+          <div>
+            <div class="arch-name">Координация</div>
+            <div class="arch-desc">Планировщик задач · Матчинг нод · Репутация</div>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <div class="arch-num">2</div>
+          <div>
+            <div class="arch-name">Верификация</div>
+            <div class="arch-desc">Proof-of-Useful-Compute · Арбитраж · Слэшинг</div>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <div class="arch-num">1</div>
+          <div>
+            <div class="arch-name">Блокчейн + GPU</div>
+            <div class="arch-desc">Консенсус · Стейкинг RZM · Вычислительные ноды</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Подписка</div>
+      <div class="section-title">Простые цены.<br>Платите картой.</div>
+      <div class="section-desc">
+        Никаких кошельков и токенов для пользователя. 
+        Просто выберите план и начните работать.
+      </div>
+    </div>
+    <div class="pricing-grid reveal">
+      <div class="plan">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">0 ₽</div>
+        <div class="plan-desc">Попробуйте без регистрации</div>
+        <ul class="plan-features">
+          <li>30 запросов в день</li>
+          <li>Базовые модели</li>
+          <li>Стандартная скорость</li>
+          <li>Веб-интерфейс</li>
+        </ul>
+        <button class="plan-btn plan-btn-secondary">Начать бесплатно</button>
+      </div>
+      <div class="plan">
+        <div class="plan-name">Старт</div>
+        <div class="plan-price">490 ₽<span>/мес</span></div>
+        <div class="plan-desc">Дешевле чашки кофе в день</div>
+        <ul class="plan-features">
+          <li>500 запросов в день</li>
+          <li>Все модели (LLM, картинки, аудио)</li>
+          <li>Стриминг ответов</li>
+          <li>Веб + мобильное приложение</li>
+        </ul>
+        <button class="plan-btn plan-btn-secondary">Подключить</button>
+      </div>
+      <div class="plan featured">
+        <div class="plan-badge">Популярный</div>
+        <div class="plan-name">Базовый</div>
+        <div class="plan-price">990 ₽<span>/мес</span></div>
+        <div class="plan-desc">Для ежедневной работы с AI</div>
+        <ul class="plan-features">
+          <li>2 000 запросов в день</li>
+          <li>Все модели + горячие ноды</li>
+          <li>Быстрый стриминг</li>
+          <li>Мобильное приложение</li>
+          <li>Приоритетная поддержка</li>
+        </ul>
+        <button class="plan-btn plan-btn-primary">Подключить</button>
+      </div>
+      <div class="plan">
+        <div class="plan-name">Про</div>
+        <div class="plan-price">1 990 ₽<span>/мес</span></div>
+        <div class="plan-desc">Для разработчиков и бизнеса</div>
+        <ul class="plan-features">
+          <li>Безлимитные запросы</li>
+          <li>API доступ + SDK</li>
+          <li>Файнтюнинг своих моделей</li>
+          <li>Приоритетные ноды</li>
+          <li>99.5% SLA</li>
+        </ul>
+        <button class="plan-btn plan-btn-secondary">Подключить</button>
+      </div>
+    </div>
+    <p style="text-align:center; color:var(--text2); margin-top:1.5rem; font-size:0.9rem;">
+      Оплата: карта МИР · СБП · ЮKassa · Stripe · крипто. Международные цены: $5 / $10 / $20 / $100.
+    </p>
+
+    <!-- Comparison -->
+    <div class="comparison reveal">
+      <table>
+        <thead>
+          <tr>
+            <th>Параметр</th>
+            <th>Razum</th>
+            <th>ChatGPT Plus</th>
+            <th>AWS / Google Cloud</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Цена</td>
+            <td class="highlight">от 490 ₽/мес</td>
+            <td>~1 800 ₽/мес</td>
+            <td>от $100/мес</td>
+          </tr>
+          <tr>
+            <td>Оплата из России</td>
+            <td class="highlight">МИР, СБП, ЮKassa</td>
+            <td>Нет</td>
+            <td>Только $</td>
+          </tr>
+          <tr>
+            <td>Выбор моделей</td>
+            <td class="highlight">DeepSeek R1, Mistral, Llama...</td>
+            <td>Только GPT</td>
+            <td>Да (сложно)</td>
+          </tr>
+          <tr>
+            <td>Файнтюнинг</td>
+            <td class="highlight">Да</td>
+            <td>Нет</td>
+            <td>Да ($$$)</td>
+          </tr>
+          <tr>
+            <td>Цензура</td>
+            <td class="highlight">Нет — open-source</td>
+            <td>Да</td>
+            <td>Зависит</td>
+          </tr>
+          <tr>
+            <td>API доступ</td>
+            <td class="highlight">Да (1 990 ₽/мес)</td>
+            <td>Отдельная оплата</td>
+            <td>Да</td>
+          </tr>
+          <tr>
+            <td>Зависимость от 1 компании</td>
+            <td class="highlight">Нет</td>
+            <td>Да</td>
+            <td>Да</td>
+          </tr>
+          <tr>
+            <td>Можно отключить</td>
+            <td class="highlight">Нет — сеть</td>
+            <td>Да</td>
+            <td>Да</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- FOR GPU OWNERS -->
+<section style="background: var(--surface);">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Для владельцев GPU</div>
+      <div class="section-title">Зарабатывайте на своей<br>видеокарте</div>
+      <div class="section-desc">
+        Ваш PC с GPU простаивает 20 часов в сутки. 
+        Подключите его к Razum и получайте токены RZM за выполнение AI-задач.
+      </div>
+    </div>
+    <div class="problems reveal">
+      <div class="problem-card">
+        <div class="problem-icon">🎮</div>
+        <div class="problem-title">RTX 3060+</div>
+        <div class="problem-text">
+          Минимальные требования — видеокарта NVIDIA с 8 ГБ памяти. 
+          Играете в игры? В остальное время GPU зарабатывает.
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">📦</div>
+        <div class="problem-title">Установка за 5 минут</div>
+        <div class="problem-text">
+          Скачайте Docker-контейнер, запустите одну команду — нода готова. 
+          Всё настраивается автоматически.
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">💰</div>
+        <div class="problem-title">Пассивный доход</div>
+        <div class="problem-text">
+          Получайте токены RZM за каждую выполненную задачу. 
+          Чем мощнее GPU и выше репутация — тем больше заработок.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Вопросы</div>
+      <div class="section-title">Частые вопросы</div>
+      <div style="height: 32px;"></div>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <div class="faq-q">Чем это отличается от ChatGPT?</div>
+        <div class="faq-a">
+          ChatGPT работает на серверах одной компании (OpenAI). Razum — это сеть из тысяч 
+          независимых GPU по всему миру. Для вас разница: дешевле, нельзя отключить, можно запускать 
+          свои модели и файнтюнить их. При этом скорость ответа сопоставима — мы используем 
+          горячие ноды и стриминг.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Нужно ли разбираться в крипте?</div>
+        <div class="faq-a">
+          Нет. Вы платите обычной картой, как за Netflix или Spotify. 
+          Блокчейн и токены работают под капотом — вы их не видите. 
+          Но если хотите — можете купить токен RZM и платить им со скидкой.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Насколько быстро работает?</div>
+        <div class="faq-a">
+          Первое слово ответа появляется через 0.5–1 секунду. 
+          Мы используем горячие ноды (модель уже в памяти GPU), географическую маршрутизацию 
+          (ваш запрос идёт на ближайшую ноду) и стриминг (текст появляется посимвольно).
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Мои данные в безопасности?</div>
+        <div class="faq-a">
+          Да. Данные шифруются при передаче (TLS). На Pro-плане доступно 
+          end-to-end шифрование через TEE (Trusted Execution Environments) — 
+          даже владелец GPU не может увидеть ваши данные.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Как заработать на своей видеокарте?</div>
+        <div class="faq-a">
+          Скачайте программу-ноду, запустите её — и ваш GPU начнёт выполнять AI-задачи 
+          от пользователей сети. За каждую задачу вы получаете токены RZM. 
+          Минимальные требования: NVIDIA GPU с 8 ГБ памяти.
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Что такое токен RZM?</div>
+        <div class="faq-a">
+          RZM — внутренняя валюта сети Razum. Пользователи платят за вычисления, 
+          ноды получают за работу. 50% всех токенов распределяются как награды за вычисления. 
+          20% каждой комиссии сжигается — это создаёт дефляционное давление.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WAITLIST -->
+<section id="waitlist" class="cta-section">
+  <div class="container" style="text-align: center;">
+    <div class="reveal">
+      <div class="section-label">Ранний доступ</div>
+      <div class="section-title">Будьте первыми</div>
+      <div class="section-desc" style="margin-left:auto; margin-right:auto;">
+        Оставьте email — мы напишем, когда откроем доступ. 
+        Первые 1000 участников получат 3 месяца Pro бесплатно.
+      </div>
+      <div class="waitlist-form">
+        <input type="email" class="waitlist-input" placeholder="your@email.com" id="emailInput">
+        <button class="btn-primary" onclick="submitWaitlist()" id="waitlistBtn">Записаться</button>
+      </div>
+      <div class="waitlist-count" id="waitlistCount">
+        Уже записались: <strong>1,247</strong> человек
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="#problem">Проблема</a>
+      <a href="#how">Как работает</a>
+      <a href="#pricing">Цены</a>
+      <a href="#faq">FAQ</a>
+      <a href="#">White Paper</a>
+      <a href="#">Twitter</a>
+      <a href="#">Telegram</a>
+      <a href="https://github.com/the-razum/razum">GitHub</a>
+    </div>
+    <div class="footer-copy">
+      &copy; 2026 Razum AI. Вычислительный разум для всех.
+    </div>
+  </div>
+</footer>
+
+<script>
+// FAQ toggles
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => {
+    q.parentElement.classList.toggle('open');
+  });
+});
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Waitlist
+function submitWaitlist() {
+  const email = document.getElementById('emailInput').value;
+  const btn = document.getElementById('waitlistBtn');
+  if (!email || !email.includes('@')) {
+    alert('Введите корректный email');
+    return;
+  }
+  btn.textContent = '✓ Записано!';
+  btn.style.background = '#059669';
+  btn.disabled = true;
+  document.getElementById('emailInput').disabled = true;
+  
+  // Increment counter
+  const counter = document.getElementById('waitlistCount');
+  counter.innerHTML = 'Уже записались: <strong>1,248</strong> человек';
+}
+</script>
+</body>
+</html>

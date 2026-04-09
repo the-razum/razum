@@ -2,7 +2,12 @@ import crypto from 'crypto'
 import { cookies } from 'next/headers'
 import { getUserById } from './db'
 
-const SECRET = process.env.AUTH_SECRET || 'razum-ai-secret-key-change-in-production-2026'
+// CRITICAL: Fail hard without AUTH_SECRET in production
+if (process.env.NODE_ENV === 'production' && !process.env.AUTH_SECRET) {
+  throw new Error('[FATAL] AUTH_SECRET environment variable is required in production. Generate with: openssl rand -hex 64')
+}
+
+const SECRET = process.env.AUTH_SECRET || 'dev-only-secret-not-for-production'
 
 // Simple token: userId.timestamp.signature
 export function createToken(userId: string): string {
@@ -28,11 +33,15 @@ export function verifyToken(token: string): string | null {
       .update(data)
       .digest('hex')
 
-    if (signature !== expected) return null
+    // Timing-safe comparison
+    if (signature.length !== expected.length) return null
+    const sigBuf = Buffer.from(signature, 'utf-8')
+    const expBuf = Buffer.from(expected, 'utf-8')
+    if (!crypto.timingSafeEqual(sigBuf, expBuf)) return null
 
-    // Token expires in 30 days
+    // Token expires in 7 days (industry standard)
     const age = Date.now() - parseInt(timestamp)
-    if (age > 30 * 24 * 60 * 60 * 1000) return null
+    if (age > 7 * 24 * 60 * 60 * 1000) return null
 
     return userId
   } catch {
@@ -45,8 +54,8 @@ export function setAuthCookie(userId: string) {
   cookies().set('razum_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60, // 7 days
     path: '/',
   })
 }
@@ -54,10 +63,8 @@ export function setAuthCookie(userId: string) {
 export function getCurrentUser() {
   const token = cookies().get('razum_token')?.value
   if (!token) return null
-
   const userId = verifyToken(token)
   if (!userId) return null
-
   return getUserById(userId)
 }
 

@@ -1,0 +1,10 @@
+{
+  "name": "razum-miner",
+  "version": "1.0.0",
+  "description": "Razum AI Network Miner — earn RZM tokens with your GPU",
+  "main": "miner.js",
+  "scripts": {
+    "start": "node miner.js"
+  },
+  "dependencies": {}
+}

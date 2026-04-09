@@ -1,4 +1,4 @@
-const CACHE_NAME = 'razum-v1'
+const CACHE_NAME = 'razum-v2'
 const STATIC_ASSETS = [
   '/chat',
   '/login',
@@ -16,7 +16,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting()
 })
 
-// Activate
+// Activate — clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -28,20 +28,23 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// Fetch - network first, fallback to cache
+// Fetch — network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Don't cache API calls
-  if (event.request.url.includes('/api/')) {
+  // Don't cache API calls or POST requests
+  if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
     return
   }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        const clone = response.clone()
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, clone)
-        })
+        // Only cache successful responses
+        if (response.ok && response.status === 200) {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clone)
+          })
+        }
         return response
       })
       .catch(() => {

@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   razum-miner:
-    image: therazum/miner:latest
+    build: .
+    # Or use pre-built: image: therazum/miner:latest
     container_name: razum-miner
     restart: unless-stopped
     deploy:
@@ -16,14 +17,14 @@ services:
       - WALLET_ADDRESS=${WALLET_ADDRESS}
       - NODE_NAME=${NODE_NAME:-razum-node}
       - MAX_CONCURRENT_TASKS=${MAX_CONCURRENT_TASKS:-3}
-      - MODELS=${MODELS:-deepseek-r1:14b,mistral:7b}
-      - COORDINATOR_URL=https://api.airazum.com/v1
+      - MODELS=${MODELS:-deepseek-r1:14b}
+      - COORDINATOR_URL=${COORDINATOR_URL:-https://airazum.com}
+      - POLL_INTERVAL=${POLL_INTERVAL:-5000}
       - MIN_REWARD=${MIN_REWARD:-0.05}
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     volumes:
-      - miner-data:/data
-      - miner-models:/models
+      - ollama-data:/root/.ollama
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -31,5 +32,4 @@ services:
       retries: 3
 
 volumes:
-  miner-data:
-  miner-models:
+  ollama-data:

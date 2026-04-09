@@ -20,7 +20,7 @@ const plans = [
     price: '490 ₽',
     period: '/мес',
     desc: 'Дешевле чашки кофе',
-    features: ['500 запросов/день', 'Все модели', 'Стриминг ответов', 'Веб + Desktop'],
+    features: ['500 запросов/день', 'Все модели', 'Поиск в интернете', 'Приоритетная очередь'],
     cta: 'Подключить',
     featured: false,
   },
@@ -30,7 +30,7 @@ const plans = [
     price: '990 ₽',
     period: '/мес',
     desc: 'Для ежедневной работы',
-    features: ['2 000 запросов/день', 'Горячие ноды', 'Быстрый стриминг', 'Приоритетная поддержка'],
+    features: ['2 000 запросов/день', 'Быстрые ноды', 'Поддержка в Telegram', 'Приоритетная очередь'],
     cta: 'Подключить',
     featured: true,
   },
@@ -39,8 +39,8 @@ const plans = [
     name: 'Про',
     price: '1 990 ₽',
     period: '/мес',
-    desc: 'Для разработчиков',
-    features: ['Безлимит', 'API + SDK', 'Файнтюнинг моделей', '99.5% SLA'],
+    desc: 'Для профессионалов',
+    features: ['Безлимит запросов', 'Все модели + быстрые ноды', 'Приоритетная поддержка 24/7', 'Ранний доступ к новым функциям'],
     cta: 'Подключить',
     featured: false,
   },
@@ -97,9 +97,15 @@ export default function PricingPage() {
             <span className="w-2 h-2 rounded-full bg-accent" />
             Razum AI
           </Link>
-          <Link href="/chat" className="text-sm text-accent hover:underline">
-            Открыть чат
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/chat" className="text-sm text-text2 hover:text-text transition">Чат</Link>
+            <Link href="/miner" className="text-sm text-text2 hover:text-text transition">Майнерам</Link>
+            {currentPlan ? (
+              <Link href="/account" className="text-sm px-3 py-1 rounded-lg bg-surface2 text-text font-medium hover:bg-border transition">Кабинет</Link>
+            ) : (
+              <Link href="/login" className="text-sm text-accent hover:underline">Войти</Link>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -165,7 +171,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-16 text-center text-text2 text-sm">
-          <p>Оплата в RZM-токенах — скидка 20%. Для бизнеса (9 990 ₽/мес) — пишите нам.</p>
+          <p>Оплата картой МИР, СБП. Скоро: оплата RZM-токенами со скидкой 20%. Для бизнеса — <a href="mailto:support@airazum.com" className="text-accent hover:underline">напишите нам</a>.</p>
         </div>
       </div>
     </div>

@@ -177,17 +177,21 @@ export default function ChatPage() {
                     style={{ width: `${Math.max(2, (user.remaining / user.requestsLimit) * 100)}%` }}
                   />
                 </div>
-                <button
-                  onClick={() => {
-                    fetch('/api/auth/me', { method: 'DELETE' }).then(() => {
-                      setUser(null)
-                      window.location.reload()
-                    })
-                  }}
-                  className="text-text2 hover:text-text transition"
-                >
-                  Выйти
-                </button>
+                <div className="flex items-center gap-3">
+                  <a href="/account" className="text-accent hover:underline">Кабинет</a>
+                  <span className="text-border">·</span>
+                  <button
+                    onClick={() => {
+                      fetch('/api/auth/me', { method: 'DELETE' }).then(() => {
+                        setUser(null)
+                        window.location.reload()
+                      })
+                    }}
+                    className="text-text2 hover:text-text transition"
+                  >
+                    Выйти
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -237,8 +241,13 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex-1" />
-          <Link href="/pricing" className="text-sm text-accent hover:underline mr-3">Тарифы</Link>
-          {!user && (
+          <Link href="/pricing" className="text-sm text-text2 hover:text-text transition mr-3">Тарифы</Link>
+          <Link href="/miner" className="text-sm text-text2 hover:text-text transition mr-3">Майнерам</Link>
+          {user ? (
+            <Link href="/account" className="text-sm px-3 py-1 rounded-lg bg-surface2 text-text font-medium hover:bg-border transition">
+              Кабинет
+            </Link>
+          ) : (
             <Link href="/login" className="text-sm px-3 py-1 rounded-lg bg-accent text-bg font-medium hover:bg-accent/90 transition">
               Войти
             </Link>
@@ -324,6 +333,10 @@ export default function ChatPage() {
           </form>
           <p className="text-center text-xs text-text2 mt-2">
             Razum AI использует open-source модели. Ответы могут быть неточными.
+            {' · '}
+            <a href="/terms" className="hover:text-text transition">Условия</a>
+            {' · '}
+            <a href="/privacy" className="hover:text-text transition">Конфиденциальность</a>
           </p>
         </div>
       </div>

@@ -1,186 +1,185 @@
 import { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 import { checkAndIncrementRequests, checkAnonLimit } from '@/lib/db'
+import { searchWeb, needsSearch } from '@/lib/search'
+import { getClientIP } from '@/lib/rateLimit'
+import { addTaskToQueue, getQueueStats, readStreamChunks } from '@/lib/taskQueue'
 
-// --- Web Search via DuckDuckGo ---
-async function searchWeb(query: string): Promise<string> {
-  try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      },
-    })
-    const html = await res.text()
+const MAX_REQUEST_SIZE = 100 * 1024
+const MAX_MESSAGES = 50
 
-    // Extract snippets: get text content from result__snippet links
-    const results: string[] = []
-    const snippetRegex = /class="result__snippet"[^>]*>([^<]+(?:<[^>]*>[^<]*)*)/g
-    let match
-    while ((match = snippetRegex.exec(html)) !== null && results.length < 5) {
-      const text = match[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").trim()
-      if (text.length > 20) {
-        results.push(`${results.length + 1}. ${text}`)
-      }
-    }
-
-    // If regex didn't work, try simpler approach - extract from result blocks
-    if (results.length === 0) {
-      const blockRegex = /result__snippet[^>]*>([\s\S]*?)<\/a>/g
-      while ((match = blockRegex.exec(html)) !== null && results.length < 5) {
-        const text = match[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
-        if (text.length > 20) {
-          results.push(`${results.length + 1}. ${text}`)
-        }
-      }
-    }
-
-    console.log(`[Search] Query: "${query}", Results: ${results.length}`)
-    if (results.length > 0) console.log(`[Search] First result: ${results[0].slice(0, 100)}...`)
-
-    return results.length > 0
-      ? results.join('\n\n')
-      : 'Поиск не дал результатов.'
-  } catch (e) {
-    console.error('Search error:', e)
-    return 'Ошибка при поиске в интернете.'
-  }
+// Map UI model id → real Ollama model name (must match what miners advertise)
+const MODEL_MAP: Record<string, string> = {
+  'deepseek-r1-14b': process.env.MODEL_DEEPSEEK || 'deepseek-r1:14b',
+  'mistral-7b':      process.env.MODEL_MISTRAL  || 'mistral:7b',
 }
 
-// Determine if the user's message needs web search
-function needsSearch(message: string): boolean {
-  const searchTriggers = [
-    // Direct search indicators
-    /найди/i, /поищи/i, /загугли/i, /search/i, /погугли/i,
-    // Current events / time-sensitive
-    /сегодня/i, /сейчас/i, /последн/i, /новост/i, /актуальн/i,
-    /курс/i, /погода/i, /цена/i, /стоимость/i,
-    // Questions about specific things that need fresh data
-    /кто такой/i, /кто такая/i, /что такое/i, /что случилось/i,
-    /when did/i, /what is the latest/i, /current/i, /today/i, /news/i,
-    /who is/i, /what happened/i, /price of/i,
-  ]
-  return searchTriggers.some(trigger => trigger.test(message))
+// Strip <think> reasoning and CJK artifacts from DeepSeek R1 output
+function cleanChunk(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/g, '')
+    .replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]+/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
-// OpenAI-compatible streaming proxy with web search
 export async function POST(req: NextRequest) {
-  const { messages, model, webSearch } = await req.json()
+  const startTime = Date.now()
 
-  // --- Rate Limiting ---
-  const token = req.cookies.get('razum_token')?.value
-  const userId = token ? verifyToken(token) : null
-
-  if (userId) {
-    const { allowed, remaining, limit } = checkAndIncrementRequests(userId)
-    if (!allowed) {
-      return new Response(
-        JSON.stringify({
-          error: `Лимит исчерпан (${limit} запросов/день). Обновите тариф для увеличения лимита.`,
-          upgrade: true,
-        }),
-        { status: 429, headers: { 'Content-Type': 'application/json' } }
-      )
+  try {
+    const contentLength = parseInt(req.headers.get('content-length') || '0')
+    if (contentLength > MAX_REQUEST_SIZE) {
+      return json({ error: 'Запрос слишком большой' }, 413)
     }
-  } else {
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-    const { allowed } = checkAnonLimit(ip)
-    if (!allowed) {
-      return new Response(
-        JSON.stringify({
-          error: 'Лимит для гостей исчерпан (10 запросов/день). Зарегистрируйтесь бесплатно для 30 запросов/день.',
-          register: true,
-        }),
-        { status: 429, headers: { 'Content-Type': 'application/json' } }
-      )
+
+    const body = await req.json()
+    const { messages, model, webSearch } = body
+
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
+      return json({ error: 'Некорректный запрос' }, 400)
     }
-  }
 
-  const INFERENCE_URL = process.env.INFERENCE_URL || 'http://localhost:11434/v1'
-  const API_KEY = process.env.INFERENCE_API_KEY || 'not-needed'
+    // Rate limiting
+    const token = req.cookies.get('razum_token')?.value
+    const userId = token ? verifyToken(token) : null
 
-  const MODEL_MAP: Record<string, string> = {
-    'deepseek-r1-14b': process.env.MODEL_DEEPSEEK || 'deepseek-r1:14b',
-    'mistral-7b': process.env.MODEL_MISTRAL || 'mistral:7b',
-  }
+    if (userId) {
+      const { allowed, limit } = checkAndIncrementRequests(userId)
+      if (!allowed) {
+        return json({ error: `Лимит исчерпан (${limit} запросов/день). Обновите тариф.`, upgrade: true }, 429)
+      }
+    } else {
+      const ip = getClientIP(req)
+      const { allowed } = checkAnonLimit(ip)
+      if (!allowed) {
+        return json({ error: 'Лимит для гостей исчерпан (10/день). Зарегистрируйтесь для 30/день.', register: true }, 429)
+      }
+    }
 
-  const actualModel = MODEL_MAP[model] || model
+    const actualModel = MODEL_MAP[model] || MODEL_MAP['deepseek-r1-14b']
 
-  // Get the last user message
-  const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
-  const userQuery = lastUserMsg?.content || ''
+    const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+    const userQuery = lastUserMsg?.content || ''
 
-  // Decide if we should search
-  const shouldSearch = webSearch !== false && needsSearch(userQuery)
+    const sanitizedMessages = messages.slice(-MAX_MESSAGES).map((m: { role: string; content: string }) => ({
+      role: m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
+      content: typeof m.content === 'string' ? m.content.slice(0, 8000) : '',
+    }))
 
-  // Build messages with search context if needed
-  let augmentedMessages = messages.map((m: { role: string; content: string }) => ({
-    role: m.role,
-    content: m.content,
-  }))
-
-  if (shouldSearch) {
-    const searchResults = await searchWeb(userQuery)
-
-    // Insert system message with search results before the conversation
+    // System prompt for all queries
     const systemMsg = {
       role: 'system',
-      content: `Ты — Razum AI. ВАЖНО: Ниже приведены СВЕЖИЕ результаты поиска в интернете. Ты ОБЯЗАН использовать эти данные в своём ответе. Цитируй факты и цифры из результатов поиска. Не говори "у меня нет данных" — данные есть ниже.
-
-РЕЗУЛЬТАТЫ ПОИСКА (свежие, от ${new Date().toLocaleDateString('ru-RU')}):
-${searchResults}
-
-Инструкции:
-- Используй данные из поиска выше для ответа
-- Указывай конкретные цифры и факты из результатов
-- Отвечай на том языке, на котором спрашивает пользователь`
+      content: 'Ты — Razum AI, дружелюбный и полезный AI-ассистент. Отвечай на языке пользователя, естественно и по делу.',
     }
 
-    augmentedMessages = [systemMsg, ...augmentedMessages]
-  }
+    const shouldSearch = webSearch !== false && needsSearch(userQuery)
+    let augmentedMessages = [systemMsg, ...sanitizedMessages]
+    if (shouldSearch) {
+      const searchResults = await searchWeb(userQuery.slice(0, 200))
+      augmentedMessages = [{
+        role: 'system',
+        content: `Ты — Razum AI. Ниже свежие результаты поиска. Используй их в ответе.\n\nРЕЗУЛЬТАТЫ ПОИСКА (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nОтвечай на языке пользователя.`,
+      }, ...sanitizedMessages]
+    }
 
-  try {
-    const response = await fetch(`${INFERENCE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: actualModel,
-        messages: augmentedMessages,
-        stream: true,
-        max_tokens: 2048,
-        temperature: 0.7,
-      }),
+    const stats = getQueueStats()
+    console.log(`[Chat] model=${actualModel} search=${shouldSearch} user=${userId || 'anon'} queue=${stats.pending}/${stats.total} q="${userQuery.slice(0, 60)}"`)
+
+    // Add task to queue — get taskId + promise
+    const { taskId, promise: taskPromise } = addTaskToQueue({
+      model: actualModel,
+      prompt: userQuery,
+      messages: augmentedMessages,
     })
 
-    if (!response.ok) {
-      const err = await response.text()
-      return new Response(
-        JSON.stringify({ error: `Inference server error: ${response.status}`, details: err }),
-        { status: 502, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
+    // Track task completion
+    let taskCompleted = false
+    let minerResult: any = null
+    let taskError: any = null
 
-    // Stream the response through to the client (SSE passthrough)
+    taskPromise
+      .then(r => { minerResult = r; taskCompleted = true })
+      .catch(e => { taskError = e; taskCompleted = true })
+
+    const enc = new TextEncoder()
+
+    // Create SSE stream that forwards chunks from miner in real-time
     const stream = new ReadableStream({
       async start(controller) {
-        const reader = response.body?.getReader()
-        if (!reader) {
-          controller.close()
-          return
-        }
         try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            controller.enqueue(value)
+          let insideThink = false
+          let chunkIndex = 0
+
+          console.log(`[Chat] Streaming task ${taskId.slice(0, 8)}...`)
+
+          // Poll for chunks until task is done
+          while (!taskCompleted) {
+            const data = readStreamChunks(taskId, chunkIndex)
+            if (data && data.chunks.length > 0) {
+              for (const chunk of data.chunks) {
+                const cleaned = cleanStreamChunk(chunk, insideThink)
+                insideThink = cleaned.insideThink
+                if (cleaned.text) {
+                  const payload = {
+                    choices: [{ delta: { content: cleaned.text }, index: 0, finish_reason: null }],
+                  }
+                  controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
+                }
+              }
+              chunkIndex += data.chunks.length
+              if (data.done) break
+            }
+            await new Promise(r => setTimeout(r, 80)) // poll every 80ms
           }
-        } catch (e) {
-          // Client disconnected or stream error
-        } finally {
+
+          // Drain any remaining chunks after completion
+          const remaining = readStreamChunks(taskId, chunkIndex)
+          if (remaining && remaining.chunks.length > 0) {
+            for (const chunk of remaining.chunks) {
+              const cleaned = cleanStreamChunk(chunk, insideThink)
+              insideThink = cleaned.insideThink
+              if (cleaned.text) {
+                const payload = {
+                  choices: [{ delta: { content: cleaned.text }, index: 0, finish_reason: null }],
+                }
+                controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
+              }
+            }
+          }
+
+          // Fallback: if no streaming chunks arrived, use full result as fake-stream
+          if (chunkIndex === 0 && minerResult && minerResult.result) {
+            const text = cleanChunk(minerResult.result)
+            const sz = 40
+            for (let i = 0; i < text.length; i += sz) {
+              const piece = text.slice(i, i + sz)
+              const payload = {
+                choices: [{ delta: { content: piece }, index: 0, finish_reason: null }],
+              }
+              controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
+            }
+          }
+
+          // Error fallback
+          if (taskError && chunkIndex === 0 && !minerResult) {
+            const errMsg = taskError.message || 'Нет доступных майнеров'
+            const errPayload = {
+              choices: [{ delta: { content: `Ошибка: ${errMsg}` }, index: 0, finish_reason: null }],
+            }
+            controller.enqueue(enc.encode(`data: ${JSON.stringify(errPayload)}\n\n`))
+          }
+
+          controller.enqueue(enc.encode(`data: [DONE]\n\n`))
           controller.close()
+
+          const minerId = minerResult?.minerId || 'unknown'
+          console.log(`[Chat] Done in ${Date.now() - startTime}ms via miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId} tokens=${minerResult?.tokensUsed || 0}`)
+        } catch (e) {
+          console.error('[Chat] Stream error:', e)
+          try {
+            controller.enqueue(enc.encode(`data: [DONE]\n\n`))
+            controller.close()
+          } catch {}
         }
       },
     })
@@ -194,12 +193,47 @@ ${searchResults}
       },
     })
   } catch (err) {
-    return new Response(
-      JSON.stringify({
-        error: 'Cannot connect to inference server',
-        hint: 'Make sure INFERENCE_URL is set in .env.local and the GPU server is running',
-      }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
-    )
+    console.error('[Chat] Fatal:', err)
+    return json({ error: 'Сервер временно недоступен' }, 503)
   }
+}
+
+// Clean a streaming chunk, handling <think> blocks that may span multiple chunks
+function cleanStreamChunk(chunk: string, insideThink: boolean): { text: string; insideThink: boolean } {
+  let text = chunk
+  let stillInThink = insideThink
+
+  if (stillInThink) {
+    const endIdx = text.indexOf('</think>')
+    if (endIdx !== -1) {
+      text = text.slice(endIdx + 8)
+      stillInThink = false
+    } else {
+      return { text: '', insideThink: true }
+    }
+  }
+
+  // Check for new <think> block start
+  const startIdx = text.indexOf('<think>')
+  if (startIdx !== -1) {
+    const endIdx = text.indexOf('</think>', startIdx)
+    if (endIdx !== -1) {
+      text = text.slice(0, startIdx) + text.slice(endIdx + 8)
+    } else {
+      text = text.slice(0, startIdx)
+      stillInThink = true
+    }
+  }
+
+  // Strip CJK characters
+  text = text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]+/g, '')
+
+  return { text, insideThink: stillInThink }
+}
+
+function json(body: any, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }

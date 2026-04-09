@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getMinerByApiKey, recordTaskCompletion } from '@/lib/db'
-import { getNextTask, assignTask, completeTask } from '@/lib/taskQueue'
+import { getNextTask, assignTask, completeTask, getQueueStats } from '@/lib/taskQueue'
 import { checkRateLimit } from '@/lib/rateLimit'
 
 // Max reward per task to prevent manipulation
@@ -28,7 +28,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ task: null, message: 'Polling too fast' }, { status: 429 })
     }
 
+    const stats = getQueueStats()
+    console.log(`[MinerPoll] queue=${stats.total} pending=${stats.pending} minerModels=${JSON.stringify(miner.models)}`)
+    console.log(`[MinerPoll] miner=${miner.id.slice(0, 8)} models=${JSON.stringify(miner.models)} queue=${stats.pending}/${stats.total}`)
+
     const task = getNextTask(miner.models)
+    console.log(`[MinerPoll] task=${task ? task.id.slice(0, 8) : 'null'}`)
+
     if (!task) {
       return NextResponse.json({ task: null, message: 'No tasks available' })
     }

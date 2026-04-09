@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth'
 import { checkAndIncrementRequests, checkAnonLimit } from '@/lib/db'
 import { searchWeb, needsSearch } from '@/lib/search'
 import { getClientIP } from '@/lib/rateLimit'
-import { addTaskToQueue, getQueueStats, readStreamChunks } from '@/lib/taskQueue'
+import { addTaskToQueue, getQueueStats, readStreamChunks, getTaskResult } from '@/lib/taskQueue'
 
 const MAX_REQUEST_SIZE = 100 * 1024
 const MAX_MESSAGES = 50
@@ -106,6 +106,19 @@ export async function POST(req: NextRequest) {
     // Create SSE stream that forwards chunks from miner in real-time
     const stream = new ReadableStream({
       async start(controller) {
+        let closed = false
+
+        function safeEnqueue(data: Uint8Array) {
+          if (closed) return
+          try { controller.enqueue(data) } catch { closed = true }
+        }
+
+        function safeClose() {
+          if (closed) return
+          try { controller.close() } catch {}
+          closed = true
+        }
+
         try {
           let insideThink = false
           let chunkIndex = 0
@@ -113,73 +126,81 @@ export async function POST(req: NextRequest) {
           console.log(`[Chat] Streaming task ${taskId.slice(0, 8)}...`)
 
           // Poll for chunks until task is done
-          while (!taskCompleted) {
+          while (!taskCompleted && !closed) {
             const data = readStreamChunks(taskId, chunkIndex)
-            if (data && data.chunks.length > 0) {
-              for (const chunk of data.chunks) {
-                const cleaned = cleanStreamChunk(chunk, insideThink)
-                insideThink = cleaned.insideThink
-                if (cleaned.text) {
-                  const payload = {
-                    choices: [{ delta: { content: cleaned.text }, index: 0, finish_reason: null }],
+            if (data) {
+              if (data.chunks.length > 0) {
+                for (const chunk of data.chunks) {
+                  const cleaned = cleanStreamChunk(chunk, insideThink)
+                  insideThink = cleaned.insideThink
+                  if (cleaned.text) {
+                    const payload = {
+                      choices: [{ delta: { content: cleaned.text }, index: 0, finish_reason: null }],
+                    }
+                    safeEnqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
                   }
-                  controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
                 }
+                chunkIndex += data.chunks.length
               }
-              chunkIndex += data.chunks.length
+              // Check done OUTSIDE chunks check — miner may complete without streaming
               if (data.done) break
             }
             await new Promise(r => setTimeout(r, 80)) // poll every 80ms
           }
 
           // Drain any remaining chunks after completion
-          const remaining = readStreamChunks(taskId, chunkIndex)
-          if (remaining && remaining.chunks.length > 0) {
-            for (const chunk of remaining.chunks) {
-              const cleaned = cleanStreamChunk(chunk, insideThink)
-              insideThink = cleaned.insideThink
-              if (cleaned.text) {
-                const payload = {
-                  choices: [{ delta: { content: cleaned.text }, index: 0, finish_reason: null }],
+          if (!closed) {
+            const remaining = readStreamChunks(taskId, chunkIndex)
+            if (remaining && remaining.chunks.length > 0) {
+              for (const chunk of remaining.chunks) {
+                const cleaned = cleanStreamChunk(chunk, insideThink)
+                insideThink = cleaned.insideThink
+                if (cleaned.text) {
+                  const payload = {
+                    choices: [{ delta: { content: cleaned.text }, index: 0, finish_reason: null }],
+                  }
+                  safeEnqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
                 }
-                controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
               }
+              chunkIndex += remaining.chunks.length
             }
           }
 
           // Fallback: if no streaming chunks arrived, use full result as fake-stream
-          if (chunkIndex === 0 && minerResult && minerResult.result) {
-            const text = cleanChunk(minerResult.result)
+          // Try in-process minerResult first, then file-based result (cross-module)
+          const fileResult = !minerResult ? getTaskResult(taskId) : null
+          const finalResult = minerResult || fileResult
+          if (!closed && chunkIndex === 0 && finalResult && finalResult.result) {
+            const text = cleanChunk(finalResult.result)
             const sz = 40
             for (let i = 0; i < text.length; i += sz) {
               const piece = text.slice(i, i + sz)
               const payload = {
                 choices: [{ delta: { content: piece }, index: 0, finish_reason: null }],
               }
-              controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
+              safeEnqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
             }
           }
 
           // Error fallback
-          if (taskError && chunkIndex === 0 && !minerResult) {
+          if (!closed && taskError && chunkIndex === 0 && !finalResult) {
             const errMsg = taskError.message || 'Нет доступных майнеров'
             const errPayload = {
               choices: [{ delta: { content: `Ошибка: ${errMsg}` }, index: 0, finish_reason: null }],
             }
-            controller.enqueue(enc.encode(`data: ${JSON.stringify(errPayload)}\n\n`))
+            safeEnqueue(enc.encode(`data: ${JSON.stringify(errPayload)}\n\n`))
           }
 
-          controller.enqueue(enc.encode(`data: [DONE]\n\n`))
-          controller.close()
+          safeEnqueue(enc.encode(`data: [DONE]\n\n`))
+          safeClose()
 
-          const minerId = minerResult?.minerId || 'unknown'
-          console.log(`[Chat] Done in ${Date.now() - startTime}ms via miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId} tokens=${minerResult?.tokensUsed || 0}`)
+          const doneResult = minerResult || fileResult
+          const minerId = doneResult?.minerId || 'unknown'
+          console.log(`[Chat] Done in ${Date.now() - startTime}ms miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId} tok=${doneResult?.tokensUsed || 0} src=${minerResult ? 'mem' : fileResult ? 'file' : 'none'}`)
         } catch (e) {
           console.error('[Chat] Stream error:', e)
-          try {
-            controller.enqueue(enc.encode(`data: [DONE]\n\n`))
-            controller.close()
-          } catch {}
+          safeEnqueue(enc.encode(`data: [DONE]\n\n`))
+          safeClose()
         }
       },
     })

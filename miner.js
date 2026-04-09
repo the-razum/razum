@@ -20,6 +20,23 @@ const os = require('os')
 const path = require('path')
 const { execSync } = require('child_process')
 
+// ---- Crash handlers: log to file before dying ----
+const CRASH_LOG = require('path').join(os.homedir(), '.razum', 'crash.log')
+function crashLog(label, err) {
+  const ts = new Date().toISOString()
+  const msg = `[${ts}] ${label}: ${err?.stack || err}\n`
+  try { fs.appendFileSync(CRASH_LOG, msg) } catch {}
+  console.error(msg)
+}
+process.on('uncaughtException', (err) => {
+  crashLog('UNCAUGHT_EXCEPTION', err)
+  process.exit(99)
+})
+process.on('unhandledRejection', (reason) => {
+  crashLog('UNHANDLED_REJECTION', reason)
+  process.exit(98)
+})
+
 const HOME = os.homedir()
 const CFG_DIR  = path.join(HOME, '.razum')
 const CFG_FILE = path.join(CFG_DIR, 'config.json')
@@ -47,8 +64,35 @@ const CONFIG = {
   heartbeatInterval: Number(process.env.HEARTBEAT_INTERVAL || fileCfg.heartbeatInterval || 20000),
 }
 
-function log(...a) { console.log(`[${new Date().toISOString()}]`, ...a) }
-function err(...a) { console.error(`[${new Date().toISOString()}] ERROR`, ...a) }
+const DEBUG_LOG = path.join(CFG_DIR, 'debug.log')
+function log(...a) {
+  const msg = `[${new Date().toISOString()}] ${a.join(' ')}`
+  console.log(msg)
+  try { fs.appendFileSync(DEBUG_LOG, msg + '\n') } catch {}
+}
+function err(...a) {
+  const msg = `[${new Date().toISOString()}] ERROR ${a.join(' ')}`
+  console.error(msg)
+  try { fs.appendFileSync(DEBUG_LOG, msg + '\n') } catch {}
+}
+
+// Signal handlers
+// SIGHUP: ignore — SSH disconnect should NOT kill the miner
+process.on('SIGHUP', () => {
+  const msg = `[${new Date().toISOString()}] SIGNAL: SIGHUP — ignored (SSH disconnect)\n`
+  try { fs.appendFileSync(DEBUG_LOG, msg) } catch {}
+})
+for (const sig of ['SIGTERM', 'SIGINT', 'SIGQUIT']) {
+  process.on(sig, () => {
+    const msg = `[${new Date().toISOString()}] SIGNAL: ${sig} — exiting\n`
+    try { fs.appendFileSync(DEBUG_LOG, msg) } catch {}
+    process.exit(128)
+  })
+}
+process.on('exit', (code) => {
+  const msg = `[${new Date().toISOString()}] EXIT: code=${code}\n`
+  try { fs.appendFileSync(DEBUG_LOG, msg) } catch {}
+})
 
 // ---------- Auto-detect ----------
 async function detectModels() {
@@ -154,23 +198,43 @@ async function heartbeatLoop(models) {
 async function runTask(task) {
   // Use Ollama native /api/chat endpoint for streaming
   const url = CONFIG.ollamaUrl.replace(/\/$/, '') + '/api/chat'
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: task.model,
-      messages: task.messages,
-      stream: true,
-      options: {
-        num_predict: 2048,
-        temperature: 0.7,
-      },
-    }),
-  })
+
+  // AbortController with 120s timeout to prevent hanging forever
+  const controller = new AbortController()
+  const timeout = setTimeout(() => {
+    log('  Ollama timeout 120s — aborting')
+    controller.abort()
+  }, 120_000)
+
+  let r
+  try {
+    log(`  Calling Ollama: ${url} model=${task.model} msgs=${task.messages.length}`)
+    r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: task.model,
+        messages: task.messages,
+        stream: true,
+        options: {
+          num_predict: 2048,
+          temperature: 0.7,
+        },
+      }),
+    })
+  } catch (e) {
+    clearTimeout(timeout)
+    throw new Error(`Ollama fetch failed: ${e.message}`)
+  }
+
   if (!r.ok) {
+    clearTimeout(timeout)
     const t = await r.text().catch(() => '')
     throw new Error(`Ollama ${r.status}: ${t.slice(0, 200)}`)
   }
+
+  log('  Ollama stream started, reading chunks...')
 
   // Stream chunks: buffer them and send to coordinator every 200ms
   const reader = r.body.getReader()
@@ -180,6 +244,7 @@ async function runTask(task) {
   let totalTokens = 0
   let flushTimer = null
   let done = false
+  let lastChunkTime = Date.now()
 
   const flushChunk = async () => {
     if (!chunkBuffer) return
@@ -200,6 +265,11 @@ async function runTask(task) {
   // Flush buffer every 200ms
   flushTimer = setInterval(async () => {
     if (chunkBuffer) await flushChunk()
+    // Stall detection: if no data for 60s during streaming, abort
+    if (Date.now() - lastChunkTime > 60_000 && fullContent.length > 0) {
+      log('  Ollama stall detected (60s no data), aborting')
+      controller.abort()
+    }
   }, 200)
 
   try {
@@ -207,6 +277,7 @@ async function runTask(task) {
       const { value, done: readerDone } = await reader.read()
       if (readerDone) break
 
+      lastChunkTime = Date.now()
       const text = decoder.decode(value, { stream: true })
       // Ollama streams NDJSON: one JSON object per line
       const lines = text.split('\n').filter(l => l.trim())
@@ -225,11 +296,13 @@ async function runTask(task) {
       }
     }
   } finally {
+    clearTimeout(timeout)
     clearInterval(flushTimer)
     // Final flush of any remaining buffer
     await flushChunk()
   }
 
+  log(`  Ollama done: ${fullContent.length} chars, ${totalTokens} tokens`)
   if (!totalTokens) totalTokens = Math.ceil(fullContent.length / 4)
   return { content: fullContent, tokens: totalTokens }
 }

@@ -129,6 +129,9 @@ function getDB() {
       _db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`)
     } catch {}
 
+    // Auto-promote founder to admin
+    _db.exec(`UPDATE users SET role = 'admin' WHERE email = 'shsv007@gmail.com' AND role != 'admin'`)
+
     // Migrate from old JSON DB if exists
     const jsonPath = join(DATA_DIR, 'users.json')
     if (existsSync(jsonPath)) {

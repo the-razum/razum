@@ -278,6 +278,31 @@ export function getUserById(id: string): User | null {
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | null
 }
 
+export function changePassword(userId: string, currentPassword: string, newPassword: string): { success: boolean; error?: string } {
+  const db = getDB()
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined
+  if (!user) return { success: false, error: 'Пользователь не найден' }
+
+  // Verify current password
+  const { hash } = hashPassword(currentPassword, user.salt)
+  const hashBuf = Buffer.from(hash, 'utf-8')
+  const storedBuf = Buffer.from(user.passwordHash, 'utf-8')
+  if (hashBuf.length !== storedBuf.length || !crypto.timingSafeEqual(hashBuf, storedBuf)) {
+    return { success: false, error: 'Неверный текущий пароль' }
+  }
+
+  // Hash new password
+  const { hash: newHash, salt: newSalt } = hashPassword(newPassword)
+  db.prepare('UPDATE users SET passwordHash = ?, salt = ? WHERE id = ?').run(newHash, newSalt, userId)
+  return { success: true }
+}
+
+export function updateUserName(userId: string, name: string): boolean {
+  const db = getDB()
+  const result = db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, userId)
+  return result.changes > 0
+}
+
 export function checkAndIncrementRequests(userId: string): { allowed: boolean; remaining: number; limit: number; plan: string } {
   const db = getDB()
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined

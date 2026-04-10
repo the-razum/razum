@@ -16,20 +16,12 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #2a3040; }
 
 /* Markdown in chat */
-.chat-message pre {
-  background: #141820;
-  border: 1px solid #1c2130;
-  border-radius: 8px;
-  padding: 12px 16px;
-  overflow-x: auto;
-  margin: 8px 0;
-}
-.chat-message code {
+.markdown-content code {
   font-family: 'DM Mono', monospace;
-  font-size: 0.875rem;
 }
-.chat-message p { margin: 4px 0; }
-.chat-message ul, .chat-message ol { padding-left: 1.5rem; margin: 4px 0; }
+.markdown-content pre code {
+  font-size: 0.8125rem;
+}
 
 /* Streaming cursor */
 @keyframes blink {
@@ -40,4 +32,5 @@ body {
   content: '\u2588';
   animation: blink 1s infinite;
   color: #00e59b;
+  font-size: 0.875rem;
 }

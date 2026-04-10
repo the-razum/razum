@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 
 type Message = {
@@ -31,6 +31,229 @@ type UserInfo = {
   remaining: number
 } | null
 
+// --- Markdown renderer ---
+function MarkdownContent({ content }: { content: string }) {
+  const [copiedBlock, setCopiedBlock] = useState<number | null>(null)
+
+  const copyCode = (code: string, idx: number) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedBlock(idx)
+      setTimeout(() => setCopiedBlock(null), 2000)
+    })
+  }
+
+  const rendered = useMemo(() => {
+    if (!content) return []
+
+    const parts: { type: 'text' | 'code'; lang?: string; content: string }[] = []
+    const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g
+    let lastIndex = 0
+    let match
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: content.slice(lastIndex, match.index) })
+      }
+      parts.push({ type: 'code', lang: match[1] || '', content: match[2].trimEnd() })
+      lastIndex = match.index + match[0].length
+    }
+    if (lastIndex < content.length) {
+      parts.push({ type: 'text', content: content.slice(lastIndex) })
+    }
+    return parts
+  }, [content])
+
+  const renderInlineMarkdown = (text: string) => {
+    // Process inline formatting
+    const elements: (string | JSX.Element)[] = []
+    // Split by inline code first
+    const codeParts = text.split(/(`[^`]+`)/)
+    codeParts.forEach((part, i) => {
+      if (part.startsWith('`') && part.endsWith('`')) {
+        elements.push(
+          <code key={i} className="px-1.5 py-0.5 rounded bg-surface2 text-accent text-[0.85em] font-mono">
+            {part.slice(1, -1)}
+          </code>
+        )
+      } else {
+        // Bold + italic
+        let processed = part
+          .replace(/\*\*\*(.+?)\*\*\*/g, '<b><i>$1</i></b>')
+          .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+          .replace(/\*(.+?)\*/g, '<i>$1</i>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-accent hover:underline" target="_blank" rel="noopener">$1</a>')
+        elements.push(
+          <span key={i} dangerouslySetInnerHTML={{ __html: processed }} />
+        )
+      }
+    })
+    return elements
+  }
+
+  const renderTextBlock = (text: string) => {
+    const lines = text.split('\n')
+    const result: JSX.Element[] = []
+    let listItems: string[] = []
+    let orderedItems: string[] = []
+    let inThink = false
+    let thinkContent: string[] = []
+
+    const flushList = () => {
+      if (listItems.length > 0) {
+        result.push(
+          <ul key={`ul-${result.length}`} className="list-disc list-inside space-y-1 my-2 ml-2">
+            {listItems.map((item, i) => (
+              <li key={i} className="text-text">{renderInlineMarkdown(item)}</li>
+            ))}
+          </ul>
+        )
+        listItems = []
+      }
+      if (orderedItems.length > 0) {
+        result.push(
+          <ol key={`ol-${result.length}`} className="list-decimal list-inside space-y-1 my-2 ml-2">
+            {orderedItems.map((item, i) => (
+              <li key={i} className="text-text">{renderInlineMarkdown(item)}</li>
+            ))}
+          </ol>
+        )
+        orderedItems = []
+      }
+    }
+
+    const flushThink = () => {
+      if (thinkContent.length > 0) {
+        result.push(
+          <details key={`think-${result.length}`} className="my-2 text-text2">
+            <summary className="cursor-pointer text-xs text-text2/60 hover:text-text2 transition select-none">
+              Размышления модели
+            </summary>
+            <div className="mt-1 pl-3 border-l-2 border-border text-xs text-text2/70 whitespace-pre-wrap">
+              {thinkContent.join('\n')}
+            </div>
+          </details>
+        )
+        thinkContent = []
+      }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // Handle <think> tags from DeepSeek
+      if (line.trim() === '<think>') {
+        flushList()
+        inThink = true
+        continue
+      }
+      if (line.trim() === '</think>') {
+        inThink = false
+        flushThink()
+        continue
+      }
+      if (inThink) {
+        thinkContent.push(line)
+        continue
+      }
+
+      // Headers
+      const h3Match = line.match(/^###\s+(.+)/)
+      const h2Match = line.match(/^##\s+(.+)/)
+      const h1Match = line.match(/^#\s+(.+)/)
+
+      if (h3Match) {
+        flushList()
+        result.push(<h4 key={`h-${i}`} className="font-semibold text-sm mt-3 mb-1">{renderInlineMarkdown(h3Match[1])}</h4>)
+      } else if (h2Match) {
+        flushList()
+        result.push(<h3 key={`h-${i}`} className="font-semibold mt-4 mb-1">{renderInlineMarkdown(h2Match[1])}</h3>)
+      } else if (h1Match) {
+        flushList()
+        result.push(<h2 key={`h-${i}`} className="font-bold text-lg mt-4 mb-2">{renderInlineMarkdown(h1Match[1])}</h2>)
+      }
+      // Unordered list
+      else if (line.match(/^[\-\*]\s+/)) {
+        if (orderedItems.length > 0) flushList()
+        listItems.push(line.replace(/^[\-\*]\s+/, ''))
+      }
+      // Ordered list
+      else if (line.match(/^\d+\.\s+/)) {
+        if (listItems.length > 0) flushList()
+        orderedItems.push(line.replace(/^\d+\.\s+/, ''))
+      }
+      // Horizontal rule
+      else if (line.match(/^---+$/)) {
+        flushList()
+        result.push(<hr key={`hr-${i}`} className="my-3 border-border" />)
+      }
+      // Blockquote
+      else if (line.startsWith('> ')) {
+        flushList()
+        result.push(
+          <blockquote key={`bq-${i}`} className="border-l-2 border-accent/40 pl-3 my-2 text-text2 italic">
+            {renderInlineMarkdown(line.slice(2))}
+          </blockquote>
+        )
+      }
+      // Empty line
+      else if (line.trim() === '') {
+        flushList()
+      }
+      // Regular paragraph
+      else {
+        flushList()
+        result.push(<p key={`p-${i}`} className="mb-2 last:mb-0">{renderInlineMarkdown(line)}</p>)
+      }
+    }
+    flushList()
+    if (inThink) flushThink()
+    return result
+  }
+
+  let codeBlockIndex = 0
+
+  return (
+    <div className="markdown-content">
+      {rendered.map((part, i) => {
+        if (part.type === 'code') {
+          const idx = codeBlockIndex++
+          return (
+            <div key={i} className="my-3 rounded-lg overflow-hidden border border-border">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-surface2 text-xs">
+                <span className="text-text2 font-mono">{part.lang || 'code'}</span>
+                <button
+                  onClick={() => copyCode(part.content, idx)}
+                  className="text-text2 hover:text-text transition flex items-center gap-1"
+                >
+                  {copiedBlock === idx ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Скопировано
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Копировать
+                    </>
+                  )}
+                </button>
+              </div>
+              <pre className="p-3 overflow-x-auto bg-[#0d1117] text-[#e6edf3] text-xs leading-relaxed font-mono">
+                <code>{part.content}</code>
+              </pre>
+            </div>
+          )
+        }
+        return <div key={i}>{renderTextBlock(part.content)}</div>
+      })}
+    </div>
+  )
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -44,7 +267,9 @@ export default function ChatPage() {
   const [chats, setChats] = useState<ChatInfo[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
 
   // Load user info
   useEffect(() => {
@@ -96,11 +321,20 @@ export default function ChatPage() {
     } catch {}
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  // Smart auto-scroll: only scroll if user is near bottom
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const { scrollTop, scrollHeight, clientHeight } = container
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 120
+    setShouldAutoScroll(isNearBottom)
+  }, [])
 
-  useEffect(() => { scrollToBottom() }, [messages])
+  useEffect(() => {
+    if (shouldAutoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, shouldAutoScroll])
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -111,6 +345,7 @@ export default function ChatPage() {
     setMessages(newMessages)
     setInput('')
     setIsStreaming(true)
+    setShouldAutoScroll(true)
 
     try {
       const res = await fetch('/api/chat', {
@@ -206,6 +441,14 @@ export default function ChatPage() {
     if (hours < 24) return `${hours}ч`
     const days = Math.floor(hours / 24)
     return `${days}д`
+  }
+
+  // Auto-resize textarea
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    const el = e.target
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
   }
 
   return (
@@ -357,7 +600,11 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto"
+        >
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-text2">
               <div className="text-4xl mb-4 opacity-20">R</div>
@@ -369,7 +616,7 @@ export default function ChatPage() {
               {messages.map((msg, i) => (
                 <div key={i} className={`mb-6 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
                   {msg.role === 'user' ? (
-                    <div className="bg-surface2 rounded-2xl rounded-br-sm px-4 py-3 max-w-[80%] text-sm">
+                    <div className="bg-surface2 rounded-2xl rounded-br-sm px-4 py-3 max-w-[80%] text-sm whitespace-pre-wrap">
                       {msg.content}
                     </div>
                   ) : (
@@ -377,10 +624,14 @@ export default function ChatPage() {
                       <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-accent text-xs font-bold">R</span>
                       </div>
-                      <div className={`chat-message text-sm leading-relaxed flex-1 ${
-                        isStreaming && i === messages.length - 1 ? 'streaming-cursor' : ''
+                      <div className={`text-sm leading-relaxed flex-1 min-w-0 ${
+                        isStreaming && i === messages.length - 1 && msg.content ? 'streaming-cursor' : ''
                       }`}>
-                        {msg.content || (isStreaming ? '' : 'Думаю...')}
+                        {msg.content ? (
+                          <MarkdownContent content={msg.content} />
+                        ) : (
+                          isStreaming ? null : 'Думаю...'
+                        )}
                       </div>
                     </div>
                   )}
@@ -430,7 +681,7 @@ export default function ChatPage() {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Спросите что-нибудь..."
               rows={1}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
-import { getUserById, getPaymentsByUser, PLANS } from '@/lib/db'
+import { getUserById, getPaymentsByUser, PLANS, changePassword, updateUserName } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('razum_token')?.value
@@ -63,4 +63,45 @@ export async function GET(req: NextRequest) {
       completedAt: p.completedAt,
     })),
   })
+}
+
+// Update profile name
+export async function PUT(req: NextRequest) {
+  const token = req.cookies.get('razum_token')?.value
+  if (!token) return NextResponse.json({ error: 'Необходимо войти' }, { status: 401 })
+  const userId = verifyToken(token)
+  if (!userId) return NextResponse.json({ error: 'Сессия истекла' }, { status: 401 })
+
+  const { name } = await req.json()
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    return NextResponse.json({ error: 'Имя должно содержать минимум 2 символа' }, { status: 400 })
+  }
+
+  const updated = updateUserName(userId, name.trim())
+  if (!updated) return NextResponse.json({ error: 'Ошибка обновления' }, { status: 500 })
+
+  return NextResponse.json({ success: true })
+}
+
+// Change password
+export async function PATCH(req: NextRequest) {
+  const token = req.cookies.get('razum_token')?.value
+  if (!token) return NextResponse.json({ error: 'Необходимо войти' }, { status: 401 })
+  const userId = verifyToken(token)
+  if (!userId) return NextResponse.json({ error: 'Сессия истекла' }, { status: 401 })
+
+  const { currentPassword, newPassword } = await req.json()
+  if (!currentPassword || !newPassword) {
+    return NextResponse.json({ error: 'Заполните все поля' }, { status: 400 })
+  }
+  if (newPassword.length < 6) {
+    return NextResponse.json({ error: 'Пароль должен содержать минимум 6 символов' }, { status: 400 })
+  }
+
+  const result = changePassword(userId, currentPassword, newPassword)
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: 400 })
+  }
+
+  return NextResponse.json({ success: true })
 }

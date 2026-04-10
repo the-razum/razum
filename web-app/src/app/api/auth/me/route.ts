@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
       plan: activePlan,
       planName: activePlanInfo.name,
       planExpiresAt: user.planExpiresAt || null,
+      emailVerified: !!user.emailVerified,
       requestsToday,
       requestsLimit: activePlanInfo.requestsPerDay,
       remaining: Math.max(0, actualRemaining),

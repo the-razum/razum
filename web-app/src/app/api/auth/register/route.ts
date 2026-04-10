@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { registerUser } from '@/lib/db'
+import { registerUser, createEmailToken } from '@/lib/db'
 import { createToken } from '@/lib/auth'
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit'
+import { sendVerificationEmail } from '@/lib/email'
 
 // Email validation (RFC 5322 simplified)
 function isValidEmail(email: string): boolean {
@@ -63,6 +64,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Send verification email (non-blocking — don't fail registration if email fails)
+    const verifyToken = createEmailToken(user.id, 'verify')
+    sendVerificationEmail(user.email, user.name, verifyToken).catch(e => {
+      console.error('[Auth] Failed to send verification email:', e)
+    })
+
     const token = createToken(user.id)
 
     const response = NextResponse.json({
@@ -71,6 +78,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         plan: user.plan,
+        emailVerified: false,
       },
     })
 

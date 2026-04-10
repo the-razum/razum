@@ -137,7 +137,13 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 24, color: '#8294a8', fontSize: 14 }}>
+        <p style={{ textAlign: 'center', marginTop: 16 }}>
+          <a href="/forgot-password" style={{ color: '#8294a8', textDecoration: 'none', fontSize: 13 }}>
+            Забыли пароль?
+          </a>
+        </p>
+
+        <p style={{ textAlign: 'center', marginTop: 16, color: '#8294a8', fontSize: 14 }}>
           Нет аккаунта?{' '}
           <a href="/register" style={{ color: '#00e59b', textDecoration: 'none' }}>
             Зарегистрироваться

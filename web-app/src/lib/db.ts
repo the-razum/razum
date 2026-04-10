@@ -129,6 +129,27 @@ function getDB() {
       _db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`)
     } catch {}
 
+    // Migrate: add emailVerified column if missing
+    try {
+      _db.exec(`ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0`)
+    } catch {}
+
+    // Create email_tokens table for verification & password reset
+    _db.exec(`
+      CREATE TABLE IF NOT EXISTS email_tokens (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        type TEXT NOT NULL,
+        token TEXT UNIQUE NOT NULL,
+        expiresAt INTEGER NOT NULL,
+        used INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_email_tokens_token ON email_tokens(token);
+      CREATE INDEX IF NOT EXISTS idx_email_tokens_userId ON email_tokens(userId);
+    `)
+
     // Auto-promote founder to admin
     _db.exec(`UPDATE users SET role = 'admin' WHERE email = 'shsv007@gmail.com' AND role != 'admin'`)
 
@@ -165,6 +186,7 @@ export interface User {
   role: 'user' | 'admin'
   plan: 'free' | 'start' | 'basic' | 'pro'
   planExpiresAt: string
+  emailVerified: number // 0 = false, 1 = true (SQLite boolean)
   requestsToday: number
   lastRequestDate: string
   createdAt: string
@@ -252,15 +274,16 @@ export function registerUser(email: string, name: string, password: string): Use
     role: 'user',
     plan: 'free',
     planExpiresAt: '',
+    emailVerified: 0,
     requestsToday: 0,
     lastRequestDate: new Date().toISOString().split('T')[0],
     createdAt: new Date().toISOString(),
   }
 
   db.prepare(`
-    INSERT INTO users (id, email, name, passwordHash, salt, role, plan, planExpiresAt, requestsToday, lastRequestDate, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(user.id, user.email, user.name, user.passwordHash, user.salt, user.role, user.plan, user.planExpiresAt, user.requestsToday, user.lastRequestDate, user.createdAt)
+    INSERT INTO users (id, email, name, passwordHash, salt, role, plan, planExpiresAt, emailVerified, requestsToday, lastRequestDate, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(user.id, user.email, user.name, user.passwordHash, user.salt, user.role, user.plan, user.planExpiresAt, user.emailVerified, user.requestsToday, user.lastRequestDate, user.createdAt)
 
   return user
 }
@@ -689,6 +712,66 @@ export function deleteUser(userId: string): boolean {
   } catch {
     return false
   }
+}
+
+// =====================
+// EMAIL VERIFICATION & PASSWORD RESET
+// =====================
+
+export function createEmailToken(userId: string, type: 'verify' | 'reset'): string {
+  const db = getDB()
+  const token = crypto.randomBytes(32).toString('hex')
+  const expiresAt = type === 'verify'
+    ? Date.now() + 24 * 60 * 60 * 1000  // 24 hours for verification
+    : Date.now() + 60 * 60 * 1000        // 1 hour for password reset
+
+  // Invalidate previous unused tokens of same type for this user
+  db.prepare("UPDATE email_tokens SET used = 1 WHERE userId = ? AND type = ? AND used = 0").run(userId, type)
+
+  db.prepare(`
+    INSERT INTO email_tokens (id, userId, type, token, expiresAt, used, createdAt)
+    VALUES (?, ?, ?, ?, ?, 0, ?)
+  `).run(crypto.randomUUID(), userId, type, token, expiresAt, new Date().toISOString())
+
+  return token
+}
+
+export function verifyEmailToken(token: string, type: 'verify' | 'reset'): { userId: string } | null {
+  const db = getDB()
+  const row = db.prepare(
+    'SELECT userId, expiresAt, used FROM email_tokens WHERE token = ? AND type = ?'
+  ).get(token, type) as { userId: string; expiresAt: number; used: number } | undefined
+
+  if (!row || row.used || row.expiresAt < Date.now()) return null
+
+  // Mark token as used
+  db.prepare("UPDATE email_tokens SET used = 1 WHERE token = ?").run(token)
+  return { userId: row.userId }
+}
+
+export function setEmailVerified(userId: string): boolean {
+  const db = getDB()
+  const result = db.prepare('UPDATE users SET emailVerified = 1 WHERE id = ?').run(userId)
+  return result.changes > 0
+}
+
+export function getUserByEmail(email: string): User | null {
+  const db = getDB()
+  return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | null
+}
+
+export function resetUserPassword(userId: string, newPassword: string): boolean {
+  const db = getDB()
+  const { hash, salt } = hashPassword(newPassword)
+  const result = db.prepare('UPDATE users SET passwordHash = ?, salt = ? WHERE id = ?').run(hash, salt, userId)
+  return result.changes > 0
+}
+
+// Cleanup expired tokens (run periodically)
+export function cleanupExpiredTokens(): number {
+  const db = getDB()
+  const result = db.prepare('DELETE FROM email_tokens WHERE expiresAt < ? OR used = 1').run(Date.now() - 86400000)
+  return result.changes
 }
 
 export function recordTaskCompletion(minerId: string, taskId: string, success: boolean, reward: number) {

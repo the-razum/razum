@@ -26,6 +26,7 @@ function getDB() {
         name TEXT NOT NULL,
         passwordHash TEXT NOT NULL,
         salt TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
         plan TEXT DEFAULT 'free',
         planExpiresAt TEXT DEFAULT '',
         requestsToday INTEGER DEFAULT 0,
@@ -123,6 +124,11 @@ function getDB() {
       _db.exec(`ALTER TABLE users ADD COLUMN planExpiresAt TEXT DEFAULT ''`)
     } catch {}
 
+    // Migrate: add role column if missing
+    try {
+      _db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`)
+    } catch {}
+
     // Migrate from old JSON DB if exists
     const jsonPath = join(DATA_DIR, 'users.json')
     if (existsSync(jsonPath)) {
@@ -153,6 +159,7 @@ export interface User {
   name: string
   passwordHash: string
   salt: string
+  role: 'user' | 'admin'
   plan: 'free' | 'start' | 'basic' | 'pro'
   planExpiresAt: string
   requestsToday: number
@@ -239,6 +246,7 @@ export function registerUser(email: string, name: string, password: string): Use
     name,
     passwordHash: hash,
     salt,
+    role: 'user',
     plan: 'free',
     planExpiresAt: '',
     requestsToday: 0,
@@ -247,9 +255,9 @@ export function registerUser(email: string, name: string, password: string): Use
   }
 
   db.prepare(`
-    INSERT INTO users (id, email, name, passwordHash, salt, plan, planExpiresAt, requestsToday, lastRequestDate, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(user.id, user.email, user.name, user.passwordHash, user.salt, user.plan, user.planExpiresAt, user.requestsToday, user.lastRequestDate, user.createdAt)
+    INSERT INTO users (id, email, name, passwordHash, salt, role, plan, planExpiresAt, requestsToday, lastRequestDate, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(user.id, user.email, user.name, user.passwordHash, user.salt, user.role, user.plan, user.planExpiresAt, user.requestsToday, user.lastRequestDate, user.createdAt)
 
   return user
 }
@@ -592,6 +600,93 @@ export function deleteChat(chatId: string, userId: string): boolean {
 // =====================
 // MINER FUNCTIONS
 // =====================
+
+// =====================
+// ADMIN FUNCTIONS
+// =====================
+
+export function isAdmin(userId: string): boolean {
+  const db = getDB()
+  const user = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role: string } | undefined
+  return user?.role === 'admin'
+}
+
+export function setUserRole(userId: string, role: 'user' | 'admin'): boolean {
+  const db = getDB()
+  const result = db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, userId)
+  return result.changes > 0
+}
+
+export function getAllUsers(limit: number = 100, offset: number = 0): { users: Omit<User, 'passwordHash' | 'salt'>[]; total: number } {
+  const db = getDB()
+  const total = (db.prepare('SELECT COUNT(*) as count FROM users').get() as any).count
+  const users = db.prepare(
+    'SELECT id, email, name, role, plan, planExpiresAt, requestsToday, lastRequestDate, createdAt FROM users ORDER BY createdAt DESC LIMIT ? OFFSET ?'
+  ).all(limit, offset) as Omit<User, 'passwordHash' | 'salt'>[]
+  return { users, total }
+}
+
+export function getAllMiners(limit: number = 100, offset: number = 0): { miners: Miner[]; total: number } {
+  const db = getDB()
+  const total = (db.prepare('SELECT COUNT(*) as count FROM miners').get() as any).count
+  const rows = db.prepare('SELECT * FROM miners ORDER BY lastSeen DESC LIMIT ? OFFSET ?').all(limit, offset) as any[]
+  const miners = rows.map((r: any) => ({ ...r, models: JSON.parse(r.models || '[]') }))
+  return { miners, total }
+}
+
+export function getAdminStats() {
+  const db = getDB()
+  const totalUsers = (db.prepare('SELECT COUNT(*) as c FROM users').get() as any).c
+  const totalMiners = (db.prepare('SELECT COUNT(*) as c FROM miners').get() as any).c
+  const onlineMiners = (db.prepare("SELECT COUNT(*) as c FROM miners WHERE status IN ('online', 'busy')").get() as any).c
+  const totalChats = (db.prepare('SELECT COUNT(*) as c FROM chats').get() as any).c
+  const totalMessages = (db.prepare('SELECT COUNT(*) as c FROM chat_messages').get() as any).c
+  const totalTasks = (db.prepare('SELECT COUNT(*) as c FROM tasks').get() as any).c
+  const completedTasks = (db.prepare("SELECT COUNT(*) as c FROM tasks WHERE status = 'completed'").get() as any).c
+  const totalPayments = (db.prepare("SELECT COUNT(*) as c FROM payments WHERE status = 'completed'").get() as any).c
+  const revenue = (db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'completed'").get() as any).total
+
+  // Users registered today
+  const today = new Date().toISOString().split('T')[0]
+  const usersToday = (db.prepare("SELECT COUNT(*) as c FROM users WHERE createdAt LIKE ?").get(`${today}%`) as any).c
+
+  // Users by plan
+  const planBreakdown = db.prepare('SELECT plan, COUNT(*) as count FROM users GROUP BY plan').all() as { plan: string; count: number }[]
+
+  return {
+    totalUsers,
+    usersToday,
+    totalMiners,
+    onlineMiners,
+    totalChats,
+    totalMessages,
+    totalTasks,
+    completedTasks,
+    totalPayments,
+    revenue,
+    planBreakdown,
+  }
+}
+
+export function deleteUser(userId: string): boolean {
+  const db = getDB()
+  const transaction = db.transaction(() => {
+    // Delete user's chats and messages
+    const chats = db.prepare('SELECT id FROM chats WHERE userId = ?').all(userId) as { id: string }[]
+    for (const chat of chats) {
+      db.prepare('DELETE FROM chat_messages WHERE chatId = ?').run(chat.id)
+    }
+    db.prepare('DELETE FROM chats WHERE userId = ?').run(userId)
+    db.prepare('DELETE FROM payments WHERE userId = ?').run(userId)
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId)
+  })
+  try {
+    transaction()
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function recordTaskCompletion(minerId: string, taskId: string, success: boolean, reward: number) {
   const db = getDB()

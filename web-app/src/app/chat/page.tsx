@@ -1,11 +1,18 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 type Message = {
   role: 'user' | 'assistant'
   content: string
+}
+
+type ChatInfo = {
+  id: string
+  title: string
+  model: string
+  updatedAt: string
 }
 
 const MODELS = [
@@ -34,6 +41,8 @@ export default function ChatPage() {
   const [webSearch, setWebSearch] = useState(true)
   const [searchUsed, setSearchUsed] = useState(false)
   const [user, setUser] = useState<UserInfo>(null)
+  const [chats, setChats] = useState<ChatInfo[]>([])
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -43,6 +52,49 @@ export default function ChatPage() {
       if (data.user) setUser(data.user)
     }).catch(() => {})
   }, [])
+
+  // Load chat history when user is available
+  const loadChats = useCallback(() => {
+    if (!user) return
+    fetch('/api/chats').then(r => r.json()).then(data => {
+      if (data.chats) setChats(data.chats)
+    }).catch(() => {})
+  }, [user])
+
+  useEffect(() => { loadChats() }, [loadChats])
+
+  // Load specific chat messages
+  const loadChat = async (chatId: string) => {
+    try {
+      const res = await fetch(`/api/chats/${chatId}`)
+      const data = await res.json()
+      if (data.messages) {
+        const msgs: Message[] = data.messages
+          .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+          .map((m: any) => ({ role: m.role, content: m.content }))
+        setMessages(msgs)
+        setCurrentChatId(chatId)
+        if (data.chat?.model) {
+          const modelExists = MODELS.find(m => m.id === data.chat.model)
+          if (modelExists) setSelectedModel(data.chat.model)
+        }
+      }
+    } catch {}
+  }
+
+  const startNewChat = () => {
+    setMessages([])
+    setCurrentChatId(null)
+    inputRef.current?.focus()
+  }
+
+  const deleteChat = async (chatId: string) => {
+    try {
+      await fetch(`/api/chats?id=${chatId}`, { method: 'DELETE' })
+      setChats(prev => prev.filter(c => c.id !== chatId))
+      if (currentChatId === chatId) startNewChat()
+    } catch {}
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -64,7 +116,12 @@ export default function ChatPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, model: selectedModel, webSearch }),
+        body: JSON.stringify({
+          messages: newMessages,
+          model: selectedModel,
+          webSearch,
+          chatId: currentChatId,
+        }),
       })
 
       if (res.status === 429) {
@@ -82,7 +139,14 @@ export default function ChatPage() {
       if (!res.ok) throw new Error('API error')
 
       setSearchUsed(res.headers.get('X-Search-Used') === 'true')
-      // Refresh user info after request
+
+      // Track the chat ID from response
+      const responseChatId = res.headers.get('X-Chat-Id')
+      if (responseChatId && !currentChatId) {
+        setCurrentChatId(responseChatId)
+      }
+
+      // Refresh user info
       fetch('/api/auth/me').then(r => r.json()).then(data => {
         if (data.user) setUser(data.user)
       }).catch(() => {})
@@ -111,10 +175,13 @@ export default function ChatPage() {
           } catch {}
         }
       }
+
+      // Refresh chat list after message
+      loadChats()
     } catch (err) {
       setMessages([...newMessages, {
         role: 'assistant',
-        content: 'Ошибка соединения с сервером. Проверьте что GPU-нода запущена и переменная INFERENCE_URL настроена.',
+        content: 'Ошибка соединения с сервером. Проверьте что GPU-нода запущена.',
       }])
     } finally {
       setIsStreaming(false)
@@ -130,6 +197,17 @@ export default function ChatPage() {
 
   const currentModel = MODELS.find(m => m.id === selectedModel)
 
+  // Format relative time
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 60) return `${mins}м`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}ч`
+    const days = Math.floor(hours / 24)
+    return `${days}д`
+  }
+
   return (
     <div className="h-screen flex bg-bg">
       {/* Sidebar */}
@@ -143,7 +221,7 @@ export default function ChatPage() {
           </div>
           <div className="p-3">
             <button
-              onClick={() => { setMessages([]); inputRef.current?.focus() }}
+              onClick={startNewChat}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-text2 hover:bg-surface transition text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,13 +230,37 @@ export default function ChatPage() {
               Новый чат
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-3 text-sm text-text2">
-            {messages.length > 0 && (
+
+          {/* Chat history */}
+          <div className="flex-1 overflow-y-auto px-3 space-y-1">
+            {chats.length === 0 && messages.length > 0 && (
               <div className="p-2 rounded-lg bg-surface text-text text-sm truncate">
                 {messages[0].content.slice(0, 40)}...
               </div>
             )}
+            {chats.map(chat => (
+              <div
+                key={chat.id}
+                className={`group flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm cursor-pointer transition ${
+                  currentChatId === chat.id ? 'bg-surface text-text' : 'text-text2 hover:bg-surface/50'
+                }`}
+                onClick={() => loadChat(chat.id)}
+              >
+                <span className="flex-1 truncate">{chat.title}</span>
+                <span className="text-xs text-text2/50 flex-shrink-0">{timeAgo(chat.updatedAt)}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteChat(chat.id) }}
+                  className="opacity-0 group-hover:opacity-100 text-text2 hover:text-red-400 transition flex-shrink-0 ml-1"
+                  title="Удалить чат"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
           </div>
+
           <div className="p-3 border-t border-border text-xs text-text2">
             {user ? (
               <div>
@@ -288,6 +390,20 @@ export default function ChatPage() {
             </div>
           )}
         </div>
+
+        {/* Typing indicator */}
+        {isStreaming && messages.length > 0 && !messages[messages.length - 1]?.content && (
+          <div className="max-w-3xl mx-auto px-4 pb-2">
+            <div className="flex items-center gap-2 text-sm text-text2">
+              <span className="inline-flex gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+              Razum думает...
+            </div>
+          </div>
+        )}
 
         {/* Input */}
         <div className="border-t border-border p-4">

@@ -85,6 +85,37 @@ function getDB() {
         createdAt TEXT NOT NULL,
         completedAt TEXT DEFAULT ''
       );
+
+      CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        title TEXT DEFAULT 'Новый чат',
+        model TEXT DEFAULT '',
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chats_userId ON chats(userId);
+      CREATE INDEX IF NOT EXISTS idx_chats_updatedAt ON chats(updatedAt);
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chatId TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_chatId ON chat_messages(chatId);
+
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        key TEXT NOT NULL,
+        store TEXT NOT NULL,
+        count INTEGER DEFAULT 1,
+        resetAt INTEGER NOT NULL,
+        blockedUntil INTEGER DEFAULT 0,
+        failCount INTEGER DEFAULT 0,
+        PRIMARY KEY (store, key)
+      );
     `)
 
     // Migrate: add planExpiresAt column if missing
@@ -356,16 +387,19 @@ export function getPaymentById(paymentId: string): Payment | null {
   return db.prepare('SELECT * FROM payments WHERE id = ?').get(paymentId) as Payment | null
 }
 
-// Anonymous rate limiting (in-memory, resets on restart)
-const anonLimits = new Map<string, { count: number; date: string }>()
+// Anonymous rate limiting — now SQLite-backed (survives restarts)
 const ANON_LIMIT = 10
 
 export function checkAnonLimit(ip: string): { allowed: boolean; remaining: number } {
+  const db = getDB()
   const today = new Date().toISOString().split('T')[0]
-  const entry = anonLimits.get(ip)
+  const key = `anon:${ip}`
 
-  if (!entry || entry.date !== today) {
-    anonLimits.set(ip, { count: 1, date: today })
+  const entry = db.prepare("SELECT count, resetAt FROM rate_limits WHERE store = 'anon' AND key = ?").get(key) as any
+  const todayTs = new Date(today).getTime() + 86400000 // end of day
+
+  if (!entry || entry.resetAt < Date.now()) {
+    db.prepare("INSERT OR REPLACE INTO rate_limits (store, key, count, resetAt, blockedUntil, failCount) VALUES ('anon', ?, 1, ?, 0, 0)").run(key, todayTs)
     return { allowed: true, remaining: ANON_LIMIT - 1 }
   }
 
@@ -373,8 +407,8 @@ export function checkAnonLimit(ip: string): { allowed: boolean; remaining: numbe
     return { allowed: false, remaining: 0 }
   }
 
-  entry.count++
-  return { allowed: true, remaining: ANON_LIMIT - entry.count }
+  db.prepare("UPDATE rate_limits SET count = count + 1 WHERE store = 'anon' AND key = ?").run(key)
+  return { allowed: true, remaining: ANON_LIMIT - entry.count - 1 }
 }
 
 // =====================
@@ -454,6 +488,85 @@ export function getNetworkStats() {
     totalUsers: totalUsers.count,
   }
 }
+
+// =====================
+// CHAT HISTORY FUNCTIONS
+// =====================
+
+export interface Chat {
+  id: string
+  userId: string
+  title: string
+  model: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChatMessage {
+  id: number
+  chatId: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  createdAt: string
+}
+
+export function createChat(userId: string, title: string, model: string): Chat {
+  const db = getDB()
+  const now = new Date().toISOString()
+  const chat: Chat = {
+    id: crypto.randomUUID(),
+    userId,
+    title: title.slice(0, 100),
+    model,
+    createdAt: now,
+    updatedAt: now,
+  }
+  db.prepare('INSERT INTO chats (id, userId, title, model, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)').run(
+    chat.id, chat.userId, chat.title, chat.model, chat.createdAt, chat.updatedAt
+  )
+  return chat
+}
+
+export function getUserChats(userId: string, limit: number = 50): Chat[] {
+  const db = getDB()
+  return db.prepare('SELECT * FROM chats WHERE userId = ? ORDER BY updatedAt DESC LIMIT ?').all(userId, limit) as Chat[]
+}
+
+export function getChatById(chatId: string, userId: string): Chat | null {
+  const db = getDB()
+  return db.prepare('SELECT * FROM chats WHERE id = ? AND userId = ?').get(chatId, userId) as Chat | null
+}
+
+export function getChatMessages(chatId: string, limit: number = 200): ChatMessage[] {
+  const db = getDB()
+  return db.prepare('SELECT * FROM chat_messages WHERE chatId = ? ORDER BY id ASC LIMIT ?').all(chatId, limit) as ChatMessage[]
+}
+
+export function addChatMessage(chatId: string, role: string, content: string): void {
+  const db = getDB()
+  const now = new Date().toISOString()
+  db.prepare('INSERT INTO chat_messages (chatId, role, content, createdAt) VALUES (?, ?, ?, ?)').run(chatId, role, content, now)
+  db.prepare('UPDATE chats SET updatedAt = ? WHERE id = ?').run(now, chatId)
+}
+
+export function updateChatTitle(chatId: string, title: string): void {
+  const db = getDB()
+  db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(title.slice(0, 100), chatId)
+}
+
+export function deleteChat(chatId: string, userId: string): boolean {
+  const db = getDB()
+  // Delete messages first, then chat
+  const chat = db.prepare('SELECT id FROM chats WHERE id = ? AND userId = ?').get(chatId, userId)
+  if (!chat) return false
+  db.prepare('DELETE FROM chat_messages WHERE chatId = ?').run(chatId)
+  db.prepare('DELETE FROM chats WHERE id = ?').run(chatId)
+  return true
+}
+
+// =====================
+// MINER FUNCTIONS
+// =====================
 
 export function recordTaskCompletion(minerId: string, taskId: string, success: boolean, reward: number) {
   const db = getDB()

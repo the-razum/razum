@@ -1,0 +1,52 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-app/package-lock.json
+
+      - run: npm ci
+
+      - run: npx tsc --noEmit
+        continue-on-error: false
+
+      - run: npm run build
+        env:
+          AUTH_SECRET: ci-build-secret
+          NEXT_PUBLIC_URL: https://airazum.com
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          script: |
+            cd /opt/razum-web
+            git pull origin main
+            cd web-app
+            npm ci --production
+            npm run build
+            pm2 restart razum-web
+            echo "Deployed $(git log --oneline -1)"

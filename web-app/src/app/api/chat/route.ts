@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth'
-import { checkAndIncrementRequests, checkAnonLimit } from '@/lib/db'
+import { checkAndIncrementRequests, checkAnonLimit, createChat, addChatMessage, getChatById, updateChatTitle } from '@/lib/db'
 import { searchWeb, needsSearch } from '@/lib/search'
 import { getClientIP } from '@/lib/rateLimit'
 import { addTaskToQueue, getQueueStats, readStreamChunks, getTaskResult } from '@/lib/taskQueue'
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { messages, model, webSearch } = body
+    const { messages, model, webSearch, chatId: reqChatId } = body
 
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
       return json({ error: 'Некорректный запрос' }, 400)
@@ -82,8 +82,21 @@ export async function POST(req: NextRequest) {
       }, ...sanitizedMessages]
     }
 
+    // Create or retrieve chat for logged-in users
+    let chatId = reqChatId || null
+    if (userId && !chatId) {
+      // Create new chat with first user message as title
+      const title = userQuery.slice(0, 80) || 'Новый чат'
+      const chat = createChat(userId, title, model || 'deepseek-r1-14b')
+      chatId = chat.id
+    }
+    // Save user message
+    if (userId && chatId) {
+      addChatMessage(chatId, 'user', userQuery)
+    }
+
     const stats = getQueueStats()
-    console.log(`[Chat] model=${actualModel} search=${shouldSearch} user=${userId || 'anon'} queue=${stats.pending}/${stats.total} q="${userQuery.slice(0, 60)}"`)
+    console.log(`[Chat] model=${actualModel} search=${shouldSearch} user=${userId || 'anon'} queue=${stats.pending}/${stats.total} chat=${chatId?.slice(0, 8) || 'none'} q="${userQuery.slice(0, 60)}"`)
 
     // Add task to queue — get taskId + promise
     const { taskId, promise: taskPromise } = addTaskToQueue({
@@ -194,9 +207,23 @@ export async function POST(req: NextRequest) {
           safeEnqueue(enc.encode(`data: [DONE]\n\n`))
           safeClose()
 
+          // Save assistant response to chat history
+          if (userId && chatId) {
+            try {
+              const saveResult = minerResult || fileResult
+              const fullResult = saveResult?.result || ''
+              if (fullResult) {
+                const cleanedResult = cleanChunk(fullResult)
+                addChatMessage(chatId, 'assistant', cleanedResult)
+              }
+            } catch (e) {
+              console.error('[Chat] Failed to save assistant message:', e)
+            }
+          }
+
           const doneResult = minerResult || fileResult
           const minerId = doneResult?.minerId || 'unknown'
-          console.log(`[Chat] Done in ${Date.now() - startTime}ms miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId} tok=${doneResult?.tokensUsed || 0} src=${minerResult ? 'mem' : fileResult ? 'file' : 'none'}`)
+          console.log(`[Chat] Done in ${Date.now() - startTime}ms miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId} tok=${doneResult?.tokensUsed || 0} chat=${chatId?.slice(0, 8) || 'none'} src=${minerResult ? 'mem' : fileResult ? 'file' : 'none'}`)
         } catch (e) {
           console.error('[Chat] Stream error:', e)
           safeEnqueue(enc.encode(`data: [DONE]\n\n`))
@@ -211,6 +238,7 @@ export async function POST(req: NextRequest) {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'X-Search-Used': shouldSearch ? 'true' : 'false',
+        ...(chatId ? { 'X-Chat-Id': chatId } : {}),
       },
     })
   } catch (err) {

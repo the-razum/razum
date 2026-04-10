@@ -412,36 +412,43 @@ sudo systemctl restart docker`}</pre>
                   <span className="w-10 h-10 rounded-full bg-accent text-bg flex items-center justify-center font-bold">3</span>
                   <div>
                     <div className="text-lg font-bold">Запустите майнер</div>
-                    <div className="text-text2 text-sm">Одна команда — и вы в сети.</div>
+                    <div className="text-text2 text-sm">Одна команда — автоустановщик сделает всё сам.</div>
                   </div>
                 </div>
 
                 <div className="space-y-4 pl-[52px]">
-                  <div className="text-sm text-text2 mb-2">Замените <code className="bg-surface2 px-1 rounded">0xВАШ_КОШЕЛЁК</code> на ваш адрес MetaMask (или оставьте — настроите позже):</div>
+                  <div className="text-sm text-text2 mb-2">Скрипт скачает Ollama + модель + настроит и запустит майнер:</div>
                   <div className="bg-bg rounded-lg px-4 py-3 font-mono text-sm text-text border border-border">
                     <div className="flex items-start justify-between gap-2">
-                      <pre className="flex-1 overflow-x-auto whitespace-pre leading-relaxed">{`docker run -d \\
-  --name razum-miner \\
-  --gpus all \\
-  --restart unless-stopped \\
-  -e WALLET_ADDRESS=0xВАШ_КОШЕЛЁК \\
-  -e NODE_NAME=my-node \\
-  -e MODELS=deepseek-r1:14b \\
-  -p 8080:8080 \\
-  therazum/miner:latest`}</pre>
-                      <CopyBtn id="linux-run" text={`docker run -d --name razum-miner --gpus all --restart unless-stopped -e WALLET_ADDRESS=0xВАШ_КОШЕЛЁК -e NODE_NAME=my-node -e MODELS=deepseek-r1:14b -p 8080:8080 therazum/miner:latest`} />
+                      <pre className="flex-1 overflow-x-auto whitespace-pre leading-relaxed">{`curl -fsSL https://airazum.com/docker-install.sh | bash`}</pre>
+                      <CopyBtn id="linux-run" text="curl -fsSL https://airazum.com/docker-install.sh | bash" />
                     </div>
                   </div>
+                  <div className="text-xs text-text2">Скрипт задаст 3 вопроса: кошелёк, модель, имя ноды. Автоматически определит GPU и настроит docker-compose.</div>
                 </div>
               </div>
 
               {/* ===== LINUX DONE ===== */}
               <div className="rounded-2xl border border-accent/30 bg-accent/5 p-6 text-center">
                 <div className="text-2xl mb-2">Готово!</div>
-                <div className="text-text2 text-sm mb-3">Майнер работает в фоне. Проверить статус:</div>
-                <div className="inline-flex items-center gap-2 bg-bg rounded-lg px-4 py-2 font-mono text-sm border border-border">
-                  <span>docker logs -f razum-miner</span>
-                  <CopyBtn id="linux-logs" text="docker logs -f razum-miner" />
+                <div className="text-text2 text-sm mb-4">Майнер + Ollama работают в Docker. Полезные команды:</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg mx-auto text-left">
+                  <div className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2 font-mono text-xs border border-border">
+                    <span className="flex-1">docker compose logs -f miner</span>
+                    <CopyBtn id="linux-logs" text="cd ~/razum-miner && docker compose logs -f miner" />
+                  </div>
+                  <div className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2 font-mono text-xs border border-border">
+                    <span className="flex-1">docker compose ps</span>
+                    <CopyBtn id="linux-ps" text="cd ~/razum-miner && docker compose ps" />
+                  </div>
+                  <div className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2 font-mono text-xs border border-border">
+                    <span className="flex-1">docker compose down</span>
+                    <CopyBtn id="linux-stop" text="cd ~/razum-miner && docker compose down" />
+                  </div>
+                  <div className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2 font-mono text-xs border border-border">
+                    <span className="flex-1">docker compose up -d</span>
+                    <CopyBtn id="linux-start" text="cd ~/razum-miner && docker compose up -d" />
+                  </div>
                 </div>
               </div>
             </div>

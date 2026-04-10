@@ -1,0 +1,78 @@
+# ===========================================
+#  Razum AI Miner — Full Stack (Miner + Ollama)
+#  Для Linux с NVIDIA GPU
+#
+#  Запуск:
+#    1. Скопируй .env.example → .env
+#    2. Укажи WALLET_ADDRESS в .env
+#    3. docker compose up -d
+# ===========================================
+
+services:
+  # --- Ollama: локальный AI-движок ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: razum-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # --- Автопулл модели при старте ---
+  ollama-pull:
+    image: curlimages/curl:latest
+    container_name: razum-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      sh -c '
+        echo "=== Pulling model: $${MODEL:-deepseek-r1:14b} ==="
+        curl -s http://ollama:11434/api/pull -d "{\"name\": \"$${MODEL:-deepseek-r1:14b}\"}" | head -5
+        echo ""
+        echo "=== Model ready ==="
+      '
+    environment:
+      MODEL: ${OLLAMA_MODEL:-deepseek-r1:14b}
+
+  # --- Razum Miner ---
+  miner:
+    build: .
+    image: razum/miner:latest
+    container_name: razum-miner
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - miner_data:/root/.razum
+    environment:
+      COORDINATOR: ${COORDINATOR:-https://airazum.com}
+      OLLAMA_URL: http://ollama:11434
+      MINER_NAME: ${MINER_NAME:-docker-miner}
+      WALLET_ADDRESS: ${WALLET_ADDRESS:?Set WALLET_ADDRESS in .env}
+      MODELS: ${MODELS:-}
+      GPU_MODEL: ${GPU_MODEL:-NVIDIA Docker}
+      POLL_INTERVAL: ${POLL_INTERVAL:-2000}
+      HEARTBEAT_INTERVAL: ${HEARTBEAT_INTERVAL:-20000}
+
+volumes:
+  ollama_data:
+    name: razum-ollama-data
+  miner_data:
+    name: razum-miner-data

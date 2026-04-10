@@ -11,6 +11,7 @@ const MAX_MESSAGES = 50
 // Map UI model id → real Ollama model name (must match what miners advertise)
 const MODEL_MAP: Record<string, string> = {
   'deepseek-r1-14b': process.env.MODEL_DEEPSEEK || 'deepseek-r1:14b',
+  'deepseek-r1-7b':  process.env.MODEL_DEEPSEEK_7B || 'deepseek-r1:7b',
   'mistral-7b':      process.env.MODEL_MISTRAL  || 'mistral:7b',
 }
 

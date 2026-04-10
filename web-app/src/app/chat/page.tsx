@@ -18,6 +18,7 @@ type ChatInfo = {
 const MODELS = [
   { id: 'deepseek-r1-14b', name: 'DeepSeek R1 14B', desc: 'Умная, рассуждает' },
   { id: 'mistral-7b', name: 'Mistral 7B', desc: 'Быстрая, лёгкая' },
+  { id: 'deepseek-r1-7b', name: 'DeepSeek R1 7B', desc: 'Быстрая, рассуждает' },
 ]
 
 type UserInfo = {
@@ -260,7 +261,8 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id)
   const [showModelPicker, setShowModelPicker] = useState(false)
-  const [showSidebar, setShowSidebar] = useState(true)
+  const [showSidebar, setShowSidebar] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [webSearch, setWebSearch] = useState(true)
   const [searchUsed, setSearchUsed] = useState(false)
   const [user, setUser] = useState<UserInfo>(null)
@@ -270,6 +272,18 @@ export default function ChatPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
+
+  // Detect mobile and set sidebar default
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (!mobile) setShowSidebar(true)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Load user info
   useEffect(() => {
@@ -299,6 +313,7 @@ export default function ChatPage() {
           .map((m: any) => ({ role: m.role, content: m.content }))
         setMessages(msgs)
         setCurrentChatId(chatId)
+        closeSidebarOnMobile()
         if (data.chat?.model) {
           const modelExists = MODELS.find(m => m.id === data.chat.model)
           if (modelExists) setSelectedModel(data.chat.model)
@@ -307,9 +322,14 @@ export default function ChatPage() {
     } catch {}
   }
 
+  const closeSidebarOnMobile = () => {
+    if (isMobile) setShowSidebar(false)
+  }
+
   const startNewChat = () => {
     setMessages([])
     setCurrentChatId(null)
+    closeSidebarOnMobile()
     inputRef.current?.focus()
   }
 
@@ -452,108 +472,124 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex bg-bg">
-      {/* Sidebar */}
-      {showSidebar && (
-        <div className="w-64 border-r border-border flex flex-col">
-          <div className="p-4 border-b border-border">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-accent" />
-              <span className="font-bold text-lg">Razum AI</span>
-            </Link>
-          </div>
-          <div className="p-3">
-            <button
-              onClick={startNewChat}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-text2 hover:bg-surface transition text-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Новый чат
-            </button>
-          </div>
-
-          {/* Chat history */}
-          <div className="flex-1 overflow-y-auto px-3 space-y-1">
-            {chats.length === 0 && messages.length > 0 && (
-              <div className="p-2 rounded-lg bg-surface text-text text-sm truncate">
-                {messages[0].content.slice(0, 40)}...
-              </div>
-            )}
-            {chats.map(chat => (
-              <div
-                key={chat.id}
-                className={`group flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm cursor-pointer transition ${
-                  currentChatId === chat.id ? 'bg-surface text-text' : 'text-text2 hover:bg-surface/50'
-                }`}
-                onClick={() => loadChat(chat.id)}
-              >
-                <span className="flex-1 truncate">{chat.title}</span>
-                <span className="text-xs text-text2/50 flex-shrink-0">{timeAgo(chat.updatedAt)}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteChat(chat.id) }}
-                  className="opacity-0 group-hover:opacity-100 text-text2 hover:text-red-400 transition flex-shrink-0 ml-1"
-                  title="Удалить чат"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-3 border-t border-border text-xs text-text2">
-            {user ? (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
-                    <span className="text-accent text-xs font-bold">{user.name[0]}</span>
-                  </div>
-                  <span className="text-text truncate">{user.name}</span>
-                </div>
-                <div className="text-text2 mb-1">
-                  {user.planName} · {user.remaining}/{user.requestsLimit} запросов
-                </div>
-                <div className="w-full bg-surface rounded-full h-1.5 mb-2">
-                  <div
-                    className="bg-accent rounded-full h-1.5 transition-all"
-                    style={{ width: `${Math.max(2, (user.remaining / user.requestsLimit) * 100)}%` }}
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <a href="/account" className="text-accent hover:underline">Кабинет</a>
-                  <span className="text-border">·</span>
-                  <button
-                    onClick={() => {
-                      fetch('/api/auth/me', { method: 'DELETE' }).then(() => {
-                        setUser(null)
-                        window.location.reload()
-                      })
-                    }}
-                    className="text-text2 hover:text-text transition"
-                  >
-                    Выйти
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <span>Гость · 10 запросов/день</span>
-                <a href="/login" className="text-accent hover:underline">Войти</a>
-                <a href="/register" className="text-accent hover:underline">Регистрация</a>
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="h-screen flex bg-bg overflow-hidden">
+      {/* Sidebar overlay on mobile */}
+      {showSidebar && isMobile && (
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowSidebar(false)} />
       )}
 
+      {/* Sidebar */}
+      <div className={`${
+        showSidebar ? 'translate-x-0' : '-translate-x-full'
+      } ${
+        isMobile
+          ? 'fixed inset-y-0 left-0 z-50 w-72 shadow-2xl'
+          : 'relative w-64'
+      } border-r border-border flex flex-col bg-bg transition-transform duration-200`}>
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-accent" />
+            <span className="font-bold text-lg">Razum AI</span>
+          </Link>
+          {isMobile && (
+            <button onClick={() => setShowSidebar(false)} className="text-text2 hover:text-text p-1">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="p-3">
+          <button
+            onClick={startNewChat}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-text2 hover:bg-surface transition text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Новый чат
+          </button>
+        </div>
+
+        {/* Chat history */}
+        <div className="flex-1 overflow-y-auto px-3 space-y-1">
+          {chats.length === 0 && messages.length > 0 && (
+            <div className="p-2 rounded-lg bg-surface text-text text-sm truncate">
+              {messages[0].content.slice(0, 40)}...
+            </div>
+          )}
+          {chats.map(chat => (
+            <div
+              key={chat.id}
+              className={`group flex items-center gap-1 px-2 py-2 rounded-lg text-sm cursor-pointer transition ${
+                currentChatId === chat.id ? 'bg-surface text-text' : 'text-text2 hover:bg-surface/50'
+              }`}
+              onClick={() => loadChat(chat.id)}
+            >
+              <span className="flex-1 truncate">{chat.title}</span>
+              <span className="text-xs text-text2/50 flex-shrink-0">{timeAgo(chat.updatedAt)}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteChat(chat.id) }}
+                className="opacity-0 group-hover:opacity-100 text-text2 hover:text-red-400 transition flex-shrink-0 ml-1 p-1"
+                title="Удалить чат"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-3 border-t border-border text-xs text-text2">
+          {user ? (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
+                  <span className="text-accent text-xs font-bold">{user.name[0]}</span>
+                </div>
+                <span className="text-text truncate">{user.name}</span>
+              </div>
+              <div className="text-text2 mb-1">
+                {user.planName} · {user.remaining}/{user.requestsLimit} запросов
+              </div>
+              <div className="w-full bg-surface rounded-full h-1.5 mb-2">
+                <div
+                  className="bg-accent rounded-full h-1.5 transition-all"
+                  style={{ width: `${Math.max(2, (user.remaining / user.requestsLimit) * 100)}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <a href="/account" className="text-accent hover:underline">Кабинет</a>
+                <span className="text-border">·</span>
+                <button
+                  onClick={() => {
+                    fetch('/api/auth/me', { method: 'DELETE' }).then(() => {
+                      setUser(null)
+                      window.location.reload()
+                    })
+                  }}
+                  className="text-text2 hover:text-text transition"
+                >
+                  Выйти
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <span>Гость · 10 запросов/день</span>
+              <a href="/login" className="text-accent hover:underline">Войти</a>
+              <a href="/register" className="text-accent hover:underline">Регистрация</a>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="h-12 border-b border-border flex items-center px-4 gap-3">
-          <button onClick={() => setShowSidebar(!showSidebar)} className="text-text2 hover:text-text">
+        <div className="h-12 border-b border-border flex items-center px-3 md:px-4 gap-2 md:gap-3">
+          <button onClick={() => setShowSidebar(!showSidebar)} className="text-text2 hover:text-text p-1">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -561,7 +597,7 @@ export default function ChatPage() {
           <div className="relative">
             <button
               onClick={() => setShowModelPicker(!showModelPicker)}
-              className="flex items-center gap-2 px-3 py-1 rounded-lg bg-surface border border-border text-sm hover:bg-surface2 transition"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border text-xs md:text-sm hover:bg-surface2 transition"
             >
               {currentModel?.name}
               <svg className="w-3 h-3 text-text2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -586,14 +622,14 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex-1" />
-          <Link href="/pricing" className="text-sm text-text2 hover:text-text transition mr-3">Тарифы</Link>
-          <Link href="/miner" className="text-sm text-text2 hover:text-text transition mr-3">Майнерам</Link>
+          <Link href="/pricing" className="hidden md:block text-sm text-text2 hover:text-text transition mr-3">Тарифы</Link>
+          <Link href="/miner" className="hidden md:block text-sm text-text2 hover:text-text transition mr-3">Майнерам</Link>
           {user ? (
-            <Link href="/account" className="text-sm px-3 py-1 rounded-lg bg-surface2 text-text font-medium hover:bg-border transition">
+            <Link href="/account" className="text-xs md:text-sm px-2.5 md:px-3 py-1 rounded-lg bg-surface2 text-text font-medium hover:bg-border transition">
               Кабинет
             </Link>
           ) : (
-            <Link href="/login" className="text-sm px-3 py-1 rounded-lg bg-accent text-bg font-medium hover:bg-accent/90 transition">
+            <Link href="/login" className="text-xs md:text-sm px-2.5 md:px-3 py-1 rounded-lg bg-accent text-bg font-medium hover:bg-accent/90 transition">
               Войти
             </Link>
           )}

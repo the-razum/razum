@@ -1,4 +1,3 @@
-// @ts-ignore - nodemailer has no bundled types, skip declaration check
 import nodemailer from 'nodemailer'
 
 // SMTP configuration — supports any provider (Yandex, Gmail, Mailgun, etc.)
@@ -9,7 +8,7 @@ const SMTP_PASS = process.env.SMTP_PASS || ''
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER
 const APP_URL = process.env.NEXT_PUBLIC_URL || 'https://airazum.com'
 
-let transporter: nodemailer.Transporter | null = null
+let transporter: any = null
 
 function getTransporter() {
   if (!transporter) {

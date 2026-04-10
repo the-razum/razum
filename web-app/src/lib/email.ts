@@ -1,3 +1,4 @@
+// @ts-ignore - nodemailer has no bundled types, skip declaration check
 import nodemailer from 'nodemailer'
 
 // SMTP configuration — supports any provider (Yandex, Gmail, Mailgun, etc.)

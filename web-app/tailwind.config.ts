@@ -15,8 +15,8 @@ const config: Config = {
         accent2: '#00c4ff',
       },
       fontFamily: {
-        sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
-        mono: ['DM Mono', 'monospace'],
+        sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['DM Mono', 'ui-monospace', 'monospace'],
       },
     },
   },

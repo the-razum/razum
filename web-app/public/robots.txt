@@ -2,7 +2,10 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /chat
-Disallow: /login
-Disallow: /register
+Disallow: /admin
+Disallow: /account
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
 
 Sitemap: https://airazum.com/sitemap.xml

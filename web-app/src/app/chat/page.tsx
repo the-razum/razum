@@ -409,6 +409,7 @@ export default function ChatPage() {
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
       let assistantContent = ''
+      let sseBuffer = ''  // Buffer for incomplete SSE lines
 
       setMessages([...newMessages, { role: 'assistant', content: '' }])
 
@@ -416,11 +417,19 @@ export default function ChatPage() {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
+        // Fix: { stream: true } preserves incomplete multi-byte UTF-8 sequences (Cyrillic etc.)
+        const chunk = decoder.decode(value, { stream: true })
+        sseBuffer += chunk
+
+        // Split on double-newline (SSE message boundary) and process complete messages
+        const parts = sseBuffer.split('\n')
+        // Keep the last part in buffer (may be incomplete)
+        sseBuffer = parts.pop() || ''
+
+        const lines = parts.filter(l => l.startsWith('data: '))
 
         for (const line of lines) {
-          const data = line.replace('data: ', '')
+          const data = line.slice(6)  // Remove 'data: ' prefix (6 chars)
           if (data === '[DONE]') break
           try {
             const json = JSON.parse(data)
@@ -434,9 +443,15 @@ export default function ChatPage() {
       // Refresh chat list after message
       loadChats()
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : ''
+      const userMessage = errMsg.includes('rate')
+        ? 'Превышен лимит запросов. Попробуйте через минуту или перейдите на платный тариф.'
+        : errMsg.includes('timeout') || errMsg.includes('Timeout')
+        ? 'Сервер не ответил вовремя. Все GPU-ноды заняты — попробуйте через пару секунд.'
+        : 'Ошибка соединения с сервером. Попробуйте ещё раз или подождите минуту.'
       setMessages([...newMessages, {
         role: 'assistant',
-        content: 'Ошибка соединения с сервером. Проверьте что GPU-нода запущена.',
+        content: userMessage,
       }])
     } finally {
       setIsStreaming(false)

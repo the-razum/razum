@@ -164,7 +164,9 @@ async function runTask(task) {
       messages: task.messages,
       stream: true,
       max_tokens: 2048,
-      temperature: 0.7,
+      temperature: 0.3,
+      top_p: 0.9,
+      repeat_penalty: 1.1,
     }),
   })
   if (!r.ok) {

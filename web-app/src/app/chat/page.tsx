@@ -16,9 +16,9 @@ type ChatInfo = {
 }
 
 const MODELS = [
-  { id: 'deepseek-r1-14b', name: 'DeepSeek R1 14B', desc: 'Умная, рассуждает' },
-  { id: 'mistral-7b', name: 'Mistral 7B', desc: 'Быстрая, лёгкая' },
-  { id: 'deepseek-r1-7b', name: 'DeepSeek R1 7B', desc: 'Быстрая, рассуждает' },
+  { id: 'mistral-7b', name: 'Mistral 7B', desc: 'Быстрая, умная, русский' },
+  { id: 'deepseek-r1-14b', name: 'DeepSeek R1 14B', desc: 'Рассуждает, код, математика' },
+  { id: 'deepseek-r1-7b', name: 'DeepSeek R1 7B', desc: 'Лёгкая, рассуждает' },
 ]
 
 type UserInfo = {

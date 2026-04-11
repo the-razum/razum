@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const actualModel = MODEL_MAP[model] || MODEL_MAP['deepseek-r1-14b']
+    const actualModel = MODEL_MAP[model] || MODEL_MAP['mistral-7b']
 
     const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
     const userQuery = lastUserMsg?.content || ''
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     if (userId && !chatId) {
       // Create new chat with first user message as title
       const title = userQuery.slice(0, 80) || 'Новый чат'
-      const chat = createChat(userId, title, model || 'deepseek-r1-14b')
+      const chat = createChat(userId, title, model || 'mistral-7b')
       chatId = chat.id
     }
     // Save user message

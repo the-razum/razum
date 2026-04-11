@@ -15,11 +15,10 @@ const MODEL_MAP: Record<string, string> = {
   'mistral-7b':      process.env.MODEL_MISTRAL  || 'mistral:7b',
 }
 
-// Strip <think> reasoning and CJK artifacts from DeepSeek R1 output
+// Strip <think> reasoning from DeepSeek R1 output
 function cleanChunk(text: string): string {
   return text
     .replace(/<think>[\s\S]*?<\/think>/g, '')
-    .replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]+/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -70,7 +69,7 @@ export async function POST(req: NextRequest) {
     // System prompt for all queries
     const systemMsg = {
       role: 'system',
-      content: 'Ты — Razum AI, дружелюбный и полезный AI-ассистент. Отвечай на языке пользователя, естественно и по делу. ВАЖНО: Никогда не используй китайские иероглифы или символы CJK в ответе. Отвечай только на языке пользователя.',
+      content: 'You are Razum AI, a friendly and helpful assistant. CRITICAL RULES: 1) Always respond in the SAME language the user writes in. If the user writes in Russian, respond in Russian. If in English, respond in English. 2) NEVER output Chinese characters, Japanese characters, or any CJK symbols. 3) NEVER use <think> tags in your visible response. 4) Be concise, natural, and helpful.',
     }
 
     const shouldSearch = webSearch !== false && needsSearch(userQuery)
@@ -79,7 +78,7 @@ export async function POST(req: NextRequest) {
       const searchResults = await searchWeb(userQuery.slice(0, 200))
       augmentedMessages = [{
         role: 'system',
-        content: `Ты — Razum AI. Ниже свежие результаты поиска. Используй их в ответе.\n\nРЕЗУЛЬТАТЫ ПОИСКА (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nОтвечай на языке пользователя.`,
+        content: `You are Razum AI. Below are fresh search results — use them in your answer.\n\nSEARCH RESULTS (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nCRITICAL: Respond in the SAME language as the user. NEVER use Chinese/CJK characters. Be concise and helpful.`,
       }, ...sanitizedMessages]
     }
 
@@ -283,9 +282,6 @@ function cleanStreamChunk(chunk: string, insideThink: boolean): { text: string; 
       stillInThink = true
     }
   }
-
-  // Strip CJK characters
-  text = text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]+/g, '')
 
   return { text, insideThink: stillInThink }
 }

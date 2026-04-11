@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     // System prompt for all queries
     const systemMsg = {
       role: 'system',
-      content: 'Ты — Razum AI, дружелюбный и полезный AI-ассистент. Отвечай на языке пользователя, естественно и по делу.',
+      content: 'Ты — Razum AI, дружелюбный и полезный AI-ассистент. Отвечай на языке пользователя, естественно и по делу. ВАЖНО: Никогда не используй китайские иероглифы или символы CJK в ответе. Отвечай только на языке пользователя.',
     }
 
     const shouldSearch = webSearch !== false && needsSearch(userQuery)
@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
         try {
           let insideThink = false
           let chunkIndex = 0
+          let keepaliveCount = 0
 
           console.log(`[Chat] Streaming task ${taskId.slice(0, 8)}...`)
 
@@ -144,6 +145,7 @@ export async function POST(req: NextRequest) {
             const data = readStreamChunks(taskId, chunkIndex)
             if (data) {
               if (data.chunks.length > 0) {
+                keepaliveCount = 0 // reset keepalive counter on real data
                 for (const chunk of data.chunks) {
                   const cleaned = cleanStreamChunk(chunk, insideThink)
                   insideThink = cleaned.insideThink
@@ -159,6 +161,13 @@ export async function POST(req: NextRequest) {
               // Check done OUTSIDE chunks check — miner may complete without streaming
               if (data.done) break
             }
+
+            // Send SSE keepalive comment every ~5s to prevent nginx/browser timeout
+            keepaliveCount++
+            if (keepaliveCount % 62 === 0) { // 62 * 80ms ≈ 5s
+              safeEnqueue(enc.encode(`: keepalive\n\n`))
+            }
+
             await new Promise(r => setTimeout(r, 80)) // poll every 80ms
           }
 

@@ -12,16 +12,26 @@ let transporter: any = null
 
 function getTransporter() {
   if (!transporter) {
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    if (!SMTP_HOST) {
       console.warn('[Email] SMTP not configured — emails will be logged to console')
       return null
     }
-    transporter = nodemailer.createTransport({
+    const isLocalhost = SMTP_HOST === 'localhost' || SMTP_HOST === '127.0.0.1'
+    const options: any = {
       host: SMTP_HOST,
       port: SMTP_PORT,
       secure: SMTP_PORT === 465,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    })
+    }
+    // Skip auth for local postfix (no credentials needed)
+    if (SMTP_USER && SMTP_PASS) {
+      options.auth = { user: SMTP_USER, pass: SMTP_PASS }
+    }
+    // For localhost, disable TLS verification
+    if (isLocalhost) {
+      options.secure = false
+      options.tls = { rejectUnauthorized: false }
+    }
+    transporter = nodemailer.createTransport(options)
   }
   return transporter
 }

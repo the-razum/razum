@@ -151,9 +151,9 @@ async function heartbeatLoop(models) {
   }
 }
 
-// ---------- Run task on local Ollama ----------
+// ---------- Run task on local Ollama (streaming) ----------
 async function runTask(task) {
-  // Use OpenAI-compatible /v1/chat/completions endpoint
+  // Use OpenAI-compatible /v1/chat/completions endpoint with streaming
   const url = CONFIG.ollamaUrl.replace(/\/$/, '') + '/v1/chat/completions'
   const r = await fetch(url, {
     method: 'POST',
@@ -162,7 +162,7 @@ async function runTask(task) {
     body: JSON.stringify({
       model: task.model,
       messages: task.messages,
-      stream: false,
+      stream: true,
       max_tokens: 2048,
       temperature: 0.7,
     }),
@@ -171,9 +171,68 @@ async function runTask(task) {
     const t = await r.text().catch(() => '')
     throw new Error(`Ollama ${r.status}: ${t.slice(0, 200)}`)
   }
-  const data = await r.json()
-  const content = data?.choices?.[0]?.message?.content || ''
-  const tokens  = data?.usage?.total_tokens || Math.ceil(content.length / 4)
+
+  const reader = r.body.getReader()
+  const decoder = new TextDecoder()
+  let content = ''
+  let sseBuffer = ''
+  let chunkBatch = ''  // batch small tokens before sending to coordinator
+  let lastSendTime = Date.now()
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    const text = decoder.decode(value, { stream: true })
+    sseBuffer += text
+
+    const lines = sseBuffer.split('\n')
+    sseBuffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const data = line.slice(6)
+      if (data === '[DONE]') continue
+      try {
+        const json = JSON.parse(data)
+        const token = json.choices?.[0]?.delta?.content || ''
+        if (token) {
+          content += token
+          chunkBatch += token
+
+          // Send batch to coordinator every 200ms or 80+ chars to reduce HTTP overhead
+          const now = Date.now()
+          if (chunkBatch.length >= 80 || now - lastSendTime > 200) {
+            try {
+              await api('POST', '/api/miners/task/update', {
+                apiKey: state.apiKey,
+                taskId: task.id,
+                chunk: chunkBatch,
+              })
+            } catch (e) {
+              // Non-fatal: stream chunk delivery failed, response still saved at end
+              err('  stream chunk failed:', e.message)
+            }
+            chunkBatch = ''
+            lastSendTime = now
+          }
+        }
+      } catch {}
+    }
+  }
+
+  // Send any remaining buffered chunk
+  if (chunkBatch) {
+    try {
+      await api('POST', '/api/miners/task/update', {
+        apiKey: state.apiKey,
+        taskId: task.id,
+        chunk: chunkBatch,
+      })
+    } catch {}
+  }
+
+  const tokens = Math.ceil(content.length / 4)
   return { content, tokens }
 }
 

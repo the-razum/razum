@@ -15,10 +15,13 @@ const MODEL_MAP: Record<string, string> = {
   'mistral-7b':      process.env.MODEL_MISTRAL  || 'mistral:7b',
 }
 
-// Strip <think> reasoning from DeepSeek R1 output
+// Strip <think> reasoning and stray unicode artifacts from model output
 function cleanChunk(text: string): string {
   return text
     .replace(/<think>[\s\S]*?<\/think>/g, '')
+    .replace(/[\u2580-\u259F\u2588]/g, '')  // block elements (█ ▓ ░ etc.)
+    .replace(/\\u[0-9a-fA-F]{4}/g, '')     // escaped unicode like "u2588"
+    .replace(/\u2588/g, '')                 // explicit full block char
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -73,14 +76,6 @@ export async function POST(req: NextRequest) {
     }
 
     const shouldSearch = webSearch !== false && needsSearch(userQuery)
-    let augmentedMessages = [systemMsg, ...sanitizedMessages]
-    if (shouldSearch) {
-      const searchResults = await searchWeb(userQuery.slice(0, 200))
-      augmentedMessages = [{
-        role: 'system',
-        content: `You are Razum AI. Below are fresh search results — use them in your answer.\n\nSEARCH RESULTS (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nCRITICAL: Respond in the SAME language as the user. NEVER use Chinese/CJK characters. Be concise and helpful.`,
-      }, ...sanitizedMessages]
-    }
 
     // Create or retrieve chat for logged-in users
     let chatId = reqChatId || null
@@ -98,21 +93,8 @@ export async function POST(req: NextRequest) {
     const stats = getQueueStats()
     console.log(`[Chat] model=${actualModel} search=${shouldSearch} user=${userId || 'anon'} queue=${stats.pending}/${stats.total} chat=${chatId?.slice(0, 8) || 'none'} q="${userQuery.slice(0, 60)}"`)
 
-    // Add task to queue — get taskId + promise
-    const { taskId, promise: taskPromise } = addTaskToQueue({
-      model: actualModel,
-      prompt: userQuery,
-      messages: augmentedMessages,
-    })
-
-    // Track task completion
-    let taskCompleted = false
-    let minerResult: any = null
-    let taskError: any = null
-
-    taskPromise
-      .then(r => { minerResult = r; taskCompleted = true })
-      .catch(e => { taskError = e; taskCompleted = true })
+    // Defer search and task creation — will be done inside the stream
+    let augmentedMessages = [systemMsg, ...sanitizedMessages]
 
     const enc = new TextEncoder()
 
@@ -133,6 +115,34 @@ export async function POST(req: NextRequest) {
         }
 
         try {
+          // Perform web search inside stream so client gets status updates
+          if (shouldSearch) {
+            // Send search status event to client
+            safeEnqueue(enc.encode(`data: ${JSON.stringify({ search_status: 'searching' })}\n\n`))
+            const searchResults = await searchWeb(userQuery.slice(0, 200))
+            augmentedMessages = [{
+              role: 'system',
+              content: `You are Razum AI. Below are fresh search results — use them in your answer.\n\nSEARCH RESULTS (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nCRITICAL: Respond in the SAME language as the user. NEVER use Chinese/CJK characters. Be concise and helpful.`,
+            }, ...sanitizedMessages]
+            safeEnqueue(enc.encode(`data: ${JSON.stringify({ search_status: 'done' })}\n\n`))
+          }
+
+          // Now create the task with (possibly augmented) messages
+          const { taskId, promise: taskPromise } = addTaskToQueue({
+            model: actualModel,
+            prompt: userQuery,
+            messages: augmentedMessages,
+          })
+
+          // Track task completion
+          let taskCompleted = false
+          let minerResult: any = null
+          let taskError: any = null
+
+          taskPromise
+            .then(r => { minerResult = r; taskCompleted = true })
+            .catch(e => { taskError = e; taskCompleted = true })
+
           let insideThink = false
           let chunkIndex = 0
           let keepaliveCount = 0
@@ -246,6 +256,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
         'X-Search-Used': shouldSearch ? 'true' : 'false',
         ...(chatId ? { 'X-Chat-Id': chatId } : {}),
       },
@@ -282,6 +293,11 @@ function cleanStreamChunk(chunk: string, insideThink: boolean): { text: string; 
       stillInThink = true
     }
   }
+
+  // Clean block elements and escaped unicode artifacts
+  text = text.replace(/[\u2580-\u259F\u2588]/g, '')
+  text = text.replace(/\\u[0-9a-fA-F]{4}/g, '')
+  text = text.replace(/\u2588/g, '')
 
   return { text, insideThink: stillInThink }
 }

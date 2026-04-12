@@ -265,6 +265,7 @@ export default function ChatPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [webSearch, setWebSearch] = useState(true)
   const [searchUsed, setSearchUsed] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const [user, setUser] = useState<UserInfo>(null)
   const [chats, setChats] = useState<ChatInfo[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
@@ -388,6 +389,7 @@ export default function ChatPage() {
             : errData.upgrade ? '\n\n[Обновить тариф →](/pricing)' : ''),
         }])
         setIsStreaming(false)
+      setIsSearching(false)
         return
       }
 
@@ -413,7 +415,8 @@ export default function ChatPage() {
 
       setMessages([...newMessages, { role: 'assistant', content: '' }])
 
-      while (reader) {
+      let streamDone = false
+      while (reader && !streamDone) {
         const { done, value } = await reader.read()
         if (done) break
 
@@ -422,19 +425,34 @@ export default function ChatPage() {
         sseBuffer += chunk
 
         // Split on double-newline (SSE message boundary) and process complete messages
-        const parts = sseBuffer.split('\n')
+        const parts = sseBuffer.split('\n\n')
         // Keep the last part in buffer (may be incomplete)
         sseBuffer = parts.pop() || ''
 
-        const lines = parts.filter(l => l.startsWith('data: '))
+        // Each SSE message block may have multiple lines; extract 'data:' lines
+        const lines: string[] = []
+        for (const part of parts) {
+          for (const line of part.split('\n')) {
+            if (line.startsWith('data: ')) lines.push(line)
+          }
+        }
 
         for (const line of lines) {
           const data = line.slice(6)  // Remove 'data: ' prefix (6 chars)
-          if (data === '[DONE]') break
+          if (data === '[DONE]') { streamDone = true; break }
           try {
             const json = JSON.parse(data)
+            // Handle search status events
+            if (json.search_status) {
+              setIsSearching(json.search_status === 'searching')
+              continue
+            }
             const token = json.choices?.[0]?.delta?.content || ''
-            assistantContent += token
+            if (!token) continue
+            // Strip any remaining unicode block chars (u2588 etc.)
+            const cleanToken = token.replace(/[\u2580-\u259F\u2588]/g, '')
+            if (!cleanToken) continue
+            assistantContent += cleanToken
             setMessages([...newMessages, { role: 'assistant', content: assistantContent }])
           } catch {}
         }
@@ -455,6 +473,7 @@ export default function ChatPage() {
       }])
     } finally {
       setIsStreaming(false)
+      setIsSearching(false)
     }
   }
 
@@ -693,7 +712,7 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Typing indicator */}
+        {/* Typing / search indicator */}
         {isStreaming && messages.length > 0 && !messages[messages.length - 1]?.content && (
           <div className="max-w-3xl mx-auto px-4 pb-2">
             <div className="flex items-center gap-2 text-sm text-text2">
@@ -702,7 +721,15 @@ export default function ChatPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
               </span>
-              Razum думает...
+              {isSearching ? (
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Ищу в интернете...
+                </span>
+              ) : 'Razum думает...'}
             </div>
           </div>
         )}

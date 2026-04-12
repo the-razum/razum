@@ -367,6 +367,7 @@ export default function ChatPage() {
     setInput('')
     setIsStreaming(true)
     setShouldAutoScroll(true)
+    const streamTimeout = setTimeout(() => { setIsStreaming(false); setIsSearching(false) }, 60000)
 
     try {
       const res = await fetch('/api/chat', {
@@ -450,12 +451,18 @@ export default function ChatPage() {
             const token = json.choices?.[0]?.delta?.content || ''
             if (!token) continue
             // Strip any remaining unicode block chars (u2588 etc.)
-            const cleanToken = token.replace(/[\u2580-\u259F\u2588]/g, '')
+            const cleanToken = token.replace(/[\u2580-\u259F\u2588]/g, '').replace(/\\u[0-9a-fA-F]{4}/g, '').replace(/u2588/g, '')
             if (!cleanToken) continue
             assistantContent += cleanToken
             setMessages([...newMessages, { role: 'assistant', content: assistantContent }])
           } catch {}
         }
+      }
+
+      // Final cleanup: strip artifacts that may span chunk boundaries
+      assistantContent = assistantContent.replace(/u2588/g, '').replace(/\\u[0-9a-fA-F]{4}/g, '').replace(/\n{3,}/g, '\n\n').trim()
+      if (assistantContent) {
+        setMessages([...newMessages, { role: 'assistant', content: assistantContent }])
       }
 
       // Refresh chat list after message
@@ -472,6 +479,7 @@ export default function ChatPage() {
         content: userMessage,
       }])
     } finally {
+      clearTimeout(streamTimeout)
       setIsStreaming(false)
       setIsSearching(false)
     }

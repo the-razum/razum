@@ -21,7 +21,7 @@ function cleanChunk(text: string): string {
     .replace(/<think>[\s\S]*?<\/think>/g, '')
     .replace(/[\u2580-\u259F\u2588]/g, '')  // block elements (█ ▓ ░ etc.)
     .replace(/\\u[0-9a-fA-F]{4}/g, '')     // escaped unicode like "u2588"
-    .replace(/\u2588/g, '')                 // explicit full block char
+    .replace(/\u2588/g, '').replace(/u2588/g, '')                 // explicit full block char
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -146,11 +146,14 @@ export async function POST(req: NextRequest) {
           let insideThink = false
           let chunkIndex = 0
           let keepaliveCount = 0
+          const streamStartTime = Date.now()
+          const MAX_STREAM_TIME = 120000
 
           console.log(`[Chat] Streaming task ${taskId.slice(0, 8)}...`)
 
           // Poll for chunks until task is done
           while (!taskCompleted && !closed) {
+            if (Date.now() - streamStartTime > MAX_STREAM_TIME) { console.warn("[Chat] Stream timeout 120s"); break; }
             const data = readStreamChunks(taskId, chunkIndex)
             if (data) {
               if (data.chunks.length > 0) {
@@ -297,7 +300,7 @@ function cleanStreamChunk(chunk: string, insideThink: boolean): { text: string; 
   // Clean block elements and escaped unicode artifacts
   text = text.replace(/[\u2580-\u259F\u2588]/g, '')
   text = text.replace(/\\u[0-9a-fA-F]{4}/g, '')
-  text = text.replace(/\u2588/g, '')
+  text = text.replace(/\u2588/g, '').replace(/u2588/g, '')
 
   return { text, insideThink: stillInThink }
 }

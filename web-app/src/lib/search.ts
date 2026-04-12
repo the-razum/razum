@@ -164,13 +164,55 @@ export async function searchWeb(query: string): Promise<string> {
 
 // Determine if message needs web search
 export function needsSearch(message: string): boolean {
-  const searchTriggers = [
-    /найди/i, /поищи/i, /загугли/i, /search/i, /погугли/i,
-    /сегодня/i, /сейчас/i, /последн/i, /новост/i, /актуальн/i,
-    /курс/i, /погода/i, /цена/i, /стоимость/i,
-    /кто такой/i, /кто такая/i, /что такое/i, /что случилось/i,
-    /when did/i, /what is the latest/i, /current/i, /today/i, /news/i,
-    /who is/i, /what happened/i, /price of/i,
+  const msg = message.toLowerCase()
+
+  // Skip search for short greetings and simple chat
+  const skipPatterns = [
+    /^(привет|здравствуй|хай|хей|йо|ку|добр|салам|hello|hi|hey|yo)\b/i,
+    /^(да|нет|ок|ладно|хорошо|понял|спасибо|пасиб|ага|угу)\b/i,
+    /^(расскажи|объясни|напиши|помоги|сделай)\b/i,
   ]
-  return searchTriggers.some(trigger => trigger.test(message))
+  if (skipPatterns.some(p => p.test(msg))) {
+    // But still search if it also has a strong search trigger
+    const hasStrongTrigger = [
+      /найди/i, /поищи/i, /загугли/i, /погугли/i,
+      /сегодня/i, /новост/i, /актуальн/i, /свежи/i,
+      /курс доллар/i, /курс евро/i, /курс биткоин/i,
+      /погода/i, /цена/i, /стоимость/i,
+    ].some(t => t.test(msg))
+    if (!hasStrongTrigger) return false
+  }
+
+  // General knowledge questions - model can handle without search
+  const generalKnowledge = [
+    /что такое (искусственный интеллект|ии|ai|машинное обучение|нейросет|программирование|интернет|компьютер)/i,
+    /^что такое \w{1,15}[?]?$/i,  // short "что такое X" — likely general knowledge
+    /как работает/i,
+    /в чём разница/i,
+    /чем отличается/i,
+  ]
+  if (generalKnowledge.some(p => p.test(msg))) return false
+
+  // Strong triggers — always search
+  const strongTriggers = [
+    /найди/i, /поищи/i, /загугли/i, /search\b/i, /погугли/i,
+    /новост/i, /актуальн/i, /свежи/i, /последни[еяхй]/i,
+    /курс/i, /погода/i, /цена\b/i, /стоимость/i,
+    /что случилось/i, /what happened/i,
+    /when did/i, /what is the latest/i, /current\b/i, /today/i, /news\b/i,
+    /who is/i, /price of/i,
+  ]
+
+  // Weak triggers — need more context
+  const weakTriggers = [
+    /сегодня/i, /сейчас/i,
+    /кто такой/i, /кто такая/i,
+  ]
+
+  if (strongTriggers.some(t => t.test(msg))) return true
+
+  // Weak triggers only fire for longer messages (likely asking about something specific)
+  if (weakTriggers.some(t => t.test(msg)) && msg.length > 20) return true
+
+  return false
 }

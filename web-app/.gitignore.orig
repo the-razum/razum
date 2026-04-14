@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Database & data
+data/
+*.db
+*.sqlite
+
+# Environment
+.env
+.env.local
+.env.production
+.env.production.local
+.env.development
+.env.development.local
+# NEVER commit real secrets — use .env.example as the only tracked template
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Build
+dist/
+build/
+
+# Temporary
+tmp/
+temp/
+*.tmp

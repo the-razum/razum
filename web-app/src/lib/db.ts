@@ -90,7 +90,7 @@ function getDB() {
       CREATE TABLE IF NOT EXISTS chats (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
-        title TEXT DEFAULT 'Новый чат',
+        title TEXT DEFAULT 'ÐÐ¾Ð²ÑÐ¹ ÑÐ°Ñ',
         model TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
@@ -151,7 +151,10 @@ function getDB() {
     `)
 
     // Auto-promote founder to admin
-    _db.exec(`UPDATE users SET role = 'admin' WHERE email = 'shsv007@gmail.com' AND role != 'admin'`)
+    const adminEmail = process.env.ADMIN_EMAIL
+    if (adminEmail) {
+      _db.exec(`UPDATE users SET role = 'admin' WHERE email = '${adminEmail.replace(/'/g, "\'\'")}'AND role != 'admin'`)
+    }
 
     // Migrate from old JSON DB if exists
     const jsonPath = join(DATA_DIR, 'users.json')
@@ -171,6 +174,33 @@ function getDB() {
       } catch (e) {
         console.error('[DB] Migration error:', e)
       }
+    }
+
+    // Ensure __internal__ miner exists (for fallback inference)
+    try {
+      const internalMiner = _db.prepare('SELECT id FROM miners WHERE id = ?').get('__internal__')
+      if (!internalMiner) {
+        _db.prepare(`
+          INSERT INTO miners (id, name, walletAddress, apiKey, gpuModel, vram, status, reputation, models, registeredAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          '__internal__',
+          'Internal Fallback Inference',
+          'n/a',
+          'internal-key-' + crypto.randomBytes(16).toString('hex'),
+          'CPU',
+          0,
+          'online',
+          1000,
+          JSON.stringify([process.env.MODEL_QWEN || 'qwen3.5:9b']),
+          new Date().toISOString()
+        )
+        console.log('[DB] Created __internal__ miner for fallback inference')
+      } else {
+        _db.prepare('UPDATE miners SET status = ? WHERE id = ?').run('online', '__internal__')
+      }
+    } catch (e) {
+      console.error('[DB] Error initializing __internal__ miner:', e)
     }
   }
   return _db
@@ -242,9 +272,9 @@ export interface Task {
 // --- Plans ---
 export const PLANS = {
   free:  { name: 'Free',    requestsPerDay: 30,    price: 0 },
-  start: { name: 'Старт',   requestsPerDay: 500,   price: 490 },
-  basic: { name: 'Базовый', requestsPerDay: 2000,  price: 990 },
-  pro:   { name: 'Про',     requestsPerDay: 99999, price: 1990 },
+  start: { name: 'Ð¡ÑÐ°ÑÑ',   requestsPerDay: 500,   price: 490 },
+  basic: { name: 'ÐÐ°Ð·Ð¾Ð²ÑÐ¹', requestsPerDay: 2000,  price: 990 },
+  pro:   { name: 'ÐÑÐ¾',     requestsPerDay: 99999, price: 1990 },
 }
 
 // --- Password hashing ---
@@ -315,14 +345,14 @@ export function getUserById(id: string): User | null {
 export function changePassword(userId: string, currentPassword: string, newPassword: string): { success: boolean; error?: string } {
   const db = getDB()
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined
-  if (!user) return { success: false, error: 'Пользователь не найден' }
+  if (!user) return { success: false, error: 'ÐÐ¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½' }
 
   // Verify current password
   const { hash } = hashPassword(currentPassword, user.salt)
   const hashBuf = Buffer.from(hash, 'utf-8')
   const storedBuf = Buffer.from(user.passwordHash, 'utf-8')
   if (hashBuf.length !== storedBuf.length || !crypto.timingSafeEqual(hashBuf, storedBuf)) {
-    return { success: false, error: 'Неверный текущий пароль' }
+    return { success: false, error: 'ÐÐµÐ²ÐµÑÐ½ÑÐ¹ ÑÐµÐºÑÑÐ¸Ð¹ Ð¿Ð°ÑÐ¾Ð»Ñ' }
   }
 
   // Hash new password
@@ -348,7 +378,7 @@ export function checkAndIncrementRequests(userId: string): { allowed: boolean; r
     const now = new Date()
     const expires = new Date(user.planExpiresAt)
     if (now > expires) {
-      // Subscription expired — downgrade to free
+      // Subscription expired â downgrade to free
       db.prepare("UPDATE users SET plan = 'free', planExpiresAt = '' WHERE id = ?").run(userId)
       activePlan = 'free'
       console.log(`[Plan] User ${userId} plan expired, downgraded to free`)
@@ -446,7 +476,7 @@ export function getPaymentById(paymentId: string): Payment | null {
   return db.prepare('SELECT * FROM payments WHERE id = ?').get(paymentId) as Payment | null
 }
 
-// Anonymous rate limiting — now SQLite-backed (survives restarts)
+// Anonymous rate limiting â now SQLite-backed (survives restarts)
 const ANON_LIMIT = 10
 
 export function checkAnonLimit(ip: string): { allowed: boolean; remaining: number } {

@@ -153,7 +153,8 @@ function getDB() {
     // Auto-promote founder to admin
     const adminEmail = process.env.ADMIN_EMAIL
     if (adminEmail) {
-      _db.exec(`UPDATE users SET role = 'admin' WHERE email = '${adminEmail.replace(/'/g, "\'\'")}'AND role != 'admin'`)
+      // Parameterized — no SQL injection
+      _db.prepare(`UPDATE users SET role = 'admin' WHERE email = ? AND role != 'admin'`).run(adminEmail)
     }
 
     // Migrate from old JSON DB if exists

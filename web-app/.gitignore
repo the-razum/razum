@@ -13,8 +13,11 @@ data/
 # Environment
 .env
 .env.local
+.env.production
 .env.production.local
+.env.development
 .env.development.local
+# NEVER commit real secrets — use .env.example as the only tracked template
 
 # IDE
 .vscode/

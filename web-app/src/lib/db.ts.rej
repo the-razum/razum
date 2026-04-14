@@ -1,0 +1,10 @@
+@@ -153,7 +153,8 @@
+     // Auto-promote founder to admin (use ADMIN_EMAIL env var for security)
+     const adminEmail = process.env.ADMIN_EMAIL
+     if (adminEmail) {
+-      _db.exec(`UPDATE users SET role = 'admin' WHERE email = '${adminEmail.replace(/'/g, "''")}' AND role != 'admin'`)
++      // Parameterized query — no SQL injection even if ADMIN_EMAIL is malformed
++      _db.prepare(`UPDATE users SET role = 'admin' WHERE email = ? AND role != 'admin'`).run(adminEmail)
+     }
+ 
+     // Migrate from old JSON DB if exists

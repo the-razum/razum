@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { messages, model, webSearch, chatId: reqChatId } = body
+    const { messages, model, webSearch, chatId: reqChatId, thinkingEnabled = false } = body
 
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
       return json({ error: 'ÐÐµÐºÐ¾ÑÑÐµÐºÑÐ½ÑÐ¹ Ð·Ð°Ð¿ÑÐ¾Ñ' }, 400)
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Clean think tags in a single pass on the COMPLETE text
-          const cleanedResponse = stripThinking ? cleanFullText(fullResponse) : fullResponse
+          const cleanedResponse = stripThinking ? cleanChunk(fullResponse) : fullResponse
 
           if (cleanedResponse && !closed) {
             // Fake-stream the cleaned result so the UI renders progressively

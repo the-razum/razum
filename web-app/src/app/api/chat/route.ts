@@ -10,9 +10,7 @@ const MAX_MESSAGES = 50
 
 // Map UI model id â real Ollama model name (must match what miners advertise)
 const MODEL_MAP: Record<string, string> = {
-  'deepseek-r1-14b': process.env.MODEL_DEEPSEEK || 'deepseek-r1:14b',
-  'deepseek-r1-7b':  process.env.MODEL_DEEPSEEK_7B || 'deepseek-r1:7b',
-  'mistral-7b':      process.env.MODEL_MISTRAL  || 'mistral:7b',
+  'qwen3.5-9b': process.env.MODEL_QWEN || 'qwen3.5:9b',
 }
 
 // Strip <think> reasoning and stray unicode artifacts from model output
@@ -59,7 +57,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const actualModel = MODEL_MAP[model] || MODEL_MAP['mistral-7b']
+    const actualModel = MODEL_MAP[model] || MODEL_MAP['qwen3.5-9b']
 
     const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
     const userQuery = lastUserMsg?.content || ''
@@ -82,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (userId && !chatId) {
       // Create new chat with first user message as title
       const title = userQuery.slice(0, 80) || 'ÐÐ¾Ð²ÑÐ¹ ÑÐ°Ñ'
-      const chat = createChat(userId, title, model || 'mistral-7b')
+      const chat = createChat(userId, title, model || 'qwen3.5-9b')
       chatId = chat.id
     }
     // Save user message

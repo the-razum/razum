@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate models array
-    const modelsList = Array.isArray(models) ? models.slice(0, 10).filter((m: any) => typeof m === 'string' && m.length < 64) : ['deepseek-r1:14b']
+    const modelsList = Array.isArray(models) ? models.slice(0, 10).filter((m: any) => typeof m === 'string' && m.length < 64) : ['qwen3.5:9b']
 
     const miner = registerMiner(
       name.trim().slice(0, 64),

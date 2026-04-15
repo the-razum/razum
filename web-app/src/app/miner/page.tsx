@@ -252,8 +252,8 @@ export default function MinerPage() {
                     <div className="text-sm text-text2 w-full">
                       <div className="mb-2">Скопируйте эту команду и вставьте в Терминал (Cmd+V), потом нажмите Enter:</div>
                       <div className="flex items-center gap-2 bg-bg rounded-lg px-4 py-3 font-mono text-text border border-border">
-                        <span className="flex-1 overflow-x-auto">ollama pull deepseek-r1:14b</span>
-                        <CopyBtn id="mac-model" text="ollama pull deepseek-r1:14b" />
+                        <span className="flex-1 overflow-x-auto">ollama pull qwen3.5:9b</span>
+                        <CopyBtn id="mac-model" text="ollama pull qwen3.5:9b" />
                       </div>
                     </div>
                   </div>
@@ -266,7 +266,7 @@ export default function MinerPage() {
                   </div>
 
                   <div className="p-3 rounded-lg bg-bg border border-border text-xs text-text2">
-                    <span className="text-accent font-medium">Мало памяти (8 ГБ)?</span> Используйте модель поменьше: <code className="bg-surface2 px-1 rounded">ollama pull mistral:7b</code>
+                    <span className="text-accent font-medium">Мало памяти (8 ГБ)?</span> Используйте модель поменьше: <code className="bg-surface2 px-1 rounded">ollama pull qwen3.5:9b</code>
                   </div>
                 </div>
               </div>
@@ -496,8 +496,8 @@ sudo systemctl restart docker`}</pre>
                   <td className="px-5 py-3 font-medium">8 ГБ</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull mistral:7b</code>
-                      <CopyBtn id="m-7b" text="ollama pull mistral:7b" />
+                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull qwen3.5:9b</code>
+                      <CopyBtn id="m-7b" text="ollama pull qwen3.5:9b" />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-text2">4.1 ГБ</td>
@@ -507,8 +507,8 @@ sudo systemctl restart docker`}</pre>
                   <td className="px-5 py-3 font-medium">16 ГБ <span className="text-accent text-xs ml-1">рекомендуем</span></td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull deepseek-r1:14b</code>
-                      <CopyBtn id="m-14b" text="ollama pull deepseek-r1:14b" />
+                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull qwen3.5:9b</code>
+                      <CopyBtn id="m-14b" text="ollama pull qwen3.5:9b" />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-text2">9 ГБ</td>
@@ -518,8 +518,8 @@ sudo systemctl restart docker`}</pre>
                   <td className="px-5 py-3 font-medium">24 ГБ</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull deepseek-r1:32b</code>
-                      <CopyBtn id="m-32b" text="ollama pull deepseek-r1:32b" />
+                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull qwen3.5:9b</code>
+                      <CopyBtn id="m-32b" text="ollama pull qwen3.5:9b" />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-text2">19 ГБ</td>
@@ -529,8 +529,8 @@ sudo systemctl restart docker`}</pre>
                   <td className="px-5 py-3 font-medium">48+ ГБ</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull llama3:70b-q4_0</code>
-                      <CopyBtn id="m-70b" text="ollama pull llama3:70b-q4_0" />
+                      <code className="bg-bg px-2 py-0.5 rounded text-xs font-mono">ollama pull qwen3.5:9b</code>
+                      <CopyBtn id="m-70b" text="ollama pull qwen3.5:9b" />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-text2">40 ГБ</td>
@@ -542,12 +542,12 @@ sudo systemctl restart docker`}</pre>
 
           <div className="space-y-3">
             <div className="p-4 rounded-xl border border-border bg-surface text-sm">
-              <span className="text-accent font-medium">Можно скачать несколько моделей!</span>
-              <span className="text-text2"> Например, если у вас 16 ГБ — можно поставить и deepseek-r1:14b, и mistral:7b. Система сама выберет нужную модель для каждого запроса.</span>
+              <span className="text-accent font-medium">Сейчас сеть использует одну модель — qwen3.5:9b</span>
+              <span className="text-text2">. Она универсальна, работает с русским и кодом. Размер ~5 ГБ, требуется около 8 ГБ свободной памяти.</span>
             </div>
             <div className="p-4 rounded-xl border border-border bg-surface text-sm">
-              <span className="text-accent font-medium">Не уверены?</span>
-              <span className="text-text2"> Начните с <code className="bg-surface2 px-1 rounded">mistral:7b</code> — она самая лёгкая и работает на любом Mac M1. Потом можно добавить модели покрупнее.</span>
+              <span className="text-accent font-medium">Совет:</span>
+              <span className="text-text2"> установите <code className="bg-surface2 px-1 rounded">ollama pull qwen3.5:9b</code> — это всё, что нужно для запуска майнинга.</span>
             </div>
           </div>
         </div>

@@ -177,31 +177,11 @@ function getDB() {
       }
     }
 
-    // Ensure __internal__ miner exists (for fallback inference)
+    // Remove deprecated __internal__ fallback miner (handler internalInference.ts was deleted)
     try {
-      const internalMiner = _db.prepare('SELECT id FROM miners WHERE id = ?').get('__internal__')
-      if (!internalMiner) {
-        _db.prepare(`
-          INSERT INTO miners (id, name, walletAddress, apiKey, gpuModel, vram, status, reputation, models, registeredAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          '__internal__',
-          'Internal Fallback Inference',
-          'n/a',
-          'internal-key-' + crypto.randomBytes(16).toString('hex'),
-          'CPU',
-          0,
-          'online',
-          1000,
-          JSON.stringify([process.env.MODEL_QWEN || 'qwen3.5:9b']),
-          new Date().toISOString()
-        )
-        console.log('[DB] Created __internal__ miner for fallback inference')
-      } else {
-        _db.prepare('UPDATE miners SET status = ? WHERE id = ?').run('online', '__internal__')
-      }
+      _db.prepare('DELETE FROM miners WHERE id = ?').run('__internal__')
     } catch (e) {
-      console.error('[DB] Error initializing __internal__ miner:', e)
+      console.error('[DB] Error cleaning __internal__ miner:', e)
     }
   }
   return _db

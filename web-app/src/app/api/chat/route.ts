@@ -144,23 +144,63 @@ export async function POST(req: NextRequest) {
           const MAX_WAIT = 120_000  // 120s max wait for task completion
           const waitStart = Date.now()
           let keepaliveCount = 0
+          let streamedText = ''       // what we have already forwarded to the client
+          let nextChunkIdx = 0        // next index to read from server-side chunk buffer
+          let inThinkBlock = false    // stateful <think>...</think> filter across chunks
+
+          // Stateful filter: emit content but swallow anything between <think>...</think>.
+          const filterThink = (input: string): string => {
+            if (!stripThinking) return input
+            let buf = input
+            let out = ''
+            while (buf.length > 0) {
+              if (inThinkBlock) {
+                const end = buf.indexOf('</think>')
+                if (end === -1) { buf = ''; break }
+                buf = buf.slice(end + '</think>'.length)
+                inThinkBlock = false
+              } else {
+                const start = buf.indexOf('<think>')
+                if (start === -1) { out += buf; buf = ''; break }
+                out += buf.slice(0, start)
+                buf = buf.slice(start + '<think>'.length)
+                inThinkBlock = true
+              }
+            }
+            return out
+          }
+
+          const emitDelta = (text: string) => {
+            if (!text || closed) return
+            const payload = { choices: [{ delta: { content: text }, index: 0, finish_reason: null }] }
+            safeEnqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
+            streamedText += text
+          }
 
           console.log(`[Chat] Awaiting task ${taskId.slice(0, 8)}...`)
 
-          // Wait for task to complete, sending only keepalive pings
+          // Drain any new chunks from the miner while we wait for completion
           while (!taskCompleted && !closed) {
             if (Date.now() - waitStart > MAX_WAIT) {
               console.warn(`[Chat] Wait timeout for task ${taskId.slice(0, 8)}`)
               break
             }
-            keepaliveCount++
-            if (keepaliveCount % 30 === 0) {
-              safeEnqueue(enc.encode(`: keepalive\n\n`))
+            const s = readStreamChunks(taskId, nextChunkIdx)
+            if (s && s.chunks.length > 0) {
+              for (const raw of s.chunks) {
+                emitDelta(filterThink(raw))
+              }
+              nextChunkIdx += s.chunks.length
+            } else {
+              keepaliveCount++
+              if (keepaliveCount % 30 === 0) {
+                safeEnqueue(enc.encode(`: keepalive\n\n`))
+              }
             }
-            await new Promise(r => setTimeout(r, 100))
+            await new Promise(r => setTimeout(r, 50))
           }
 
-          // Resolve the full response from the most reliable source
+          // Resolve the authoritative full response (miner sends it at end of task)
           const fileResult = !minerResult ? getTaskResult(taskId) : null
           const finalResult = minerResult || fileResult
           let fullResponse = ''
@@ -177,23 +217,17 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Clean think tags in a single pass on the COMPLETE text
           const cleanedResponse = stripThinking ? cleanChunk(fullResponse) : fullResponse
 
+          // Flush any tail we haven't streamed yet (chunks might have lagged behind the final answer)
           if (cleanedResponse && !closed) {
-            // Fake-stream the cleaned result so the UI renders progressively
-            const sz = 30
-            for (let i = 0; i < cleanedResponse.length; i += sz) {
-              if (closed) break
-              const piece = cleanedResponse.slice(i, i + sz)
-              const payload = {
-                choices: [{ delta: { content: piece }, index: 0, finish_reason: null }],
-              }
-              safeEnqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
-              if (i + sz < cleanedResponse.length) {
-                await new Promise(r => setTimeout(r, 8))
-              }
+            if (cleanedResponse.startsWith(streamedText) && cleanedResponse.length > streamedText.length) {
+              emitDelta(cleanedResponse.slice(streamedText.length))
+            } else if (streamedText.length === 0) {
+              // Nothing streamed at all — emit full response now
+              emitDelta(cleanedResponse)
             }
+            // else: streamed text diverges from cleaned (unlikely) — accept what we already sent
           } else if (!closed && taskError) {
             const errMsg = taskError.message || 'Нет доступных майнеров'
             safeEnqueue(enc.encode(`data: ${JSON.stringify({

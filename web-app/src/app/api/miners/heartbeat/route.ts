@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || ''
-    updateMinerStatus(miner.id, status || 'online', ip)
+    updateMinerStatus(miner.id, status || 'online', ip, undefined, Array.isArray(models) ? models : undefined)
 
     return NextResponse.json({
       ok: true,

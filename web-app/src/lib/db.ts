@@ -522,12 +522,13 @@ export function getMinerByApiKey(apiKey: string): Miner | null {
   return { ...row, models: JSON.parse(row.models || '[]') }
 }
 
-export function updateMinerStatus(minerId: string, status: string, ip?: string, port?: number) {
+export function updateMinerStatus(minerId: string, status: string, ip?: string, port?: number, models?: string[]) {
   const db = getDB()
   const updates: string[] = ['status = ?', 'lastSeen = ?']
   const params: any[] = [status, new Date().toISOString()]
   if (ip) { updates.push('ip = ?'); params.push(ip) }
   if (port) { updates.push('port = ?'); params.push(port) }
+  if (Array.isArray(models) && models.length > 0) { updates.push('models = ?'); params.push(JSON.stringify(models)) }
   params.push(minerId)
   db.prepare(`UPDATE miners SET ${updates.join(', ')} WHERE id = ?`).run(...params)
 }

@@ -64,6 +64,41 @@ function getDB() {
     }
 
     ;(globalThis as any).__razumTaskDB = db
+
+    // Periodic sweeper: if a task was assigned but the miner never returned
+    // a result within the retry window, requeue it so another miner can try.
+    // If even a requeue cannot get picked up (recent = true), mark failed.
+    if (!(globalThis as any).__razumSweeper) {
+      const REQUEUE_AFTER_SEC = 90  // task assigned > 90s → requeue as pending
+      const FAIL_AFTER_SEC = 240    // task in any active state > 240s → mark failed
+      ;(globalThis as any).__razumSweeper = setInterval(() => {
+        try {
+          const db2 = (globalThis as any).__razumTaskDB
+          if (!db2) return
+          // Requeue tasks stuck in 'assigned' after REQUEUE_AFTER_SEC
+          // (reset minerId so another miner can pick up)
+          const requeueCutoff = new Date(Date.now() - REQUEUE_AFTER_SEC * 1000).toISOString()
+          const requeued = db2.prepare(`
+            UPDATE tasks SET status = 'pending', minerId = NULL, startedAt = ''
+            WHERE status = 'assigned' AND startedAt != '' AND startedAt < ?
+          `).run(requeueCutoff)
+          if (requeued.changes > 0) {
+            console.log(`[TaskQueue sweeper] Requeued ${requeued.changes} stuck tasks`)
+          }
+          // Hard-fail ancient tasks in any active state
+          const failCutoff = new Date(Date.now() - FAIL_AFTER_SEC * 1000).toISOString()
+          const failed = db2.prepare(`
+            UPDATE tasks SET status = 'failed', completedAt = ?
+            WHERE status IN ('pending', 'assigned') AND createdAt < ?
+          `).run(new Date().toISOString(), failCutoff)
+          if (failed.changes > 0) {
+            console.log(`[TaskQueue sweeper] Hard-failed ${failed.changes} ancient tasks`)
+          }
+        } catch (e) {
+          console.error('[TaskQueue sweeper] error:', e)
+        }
+      }, 30_000) // every 30 seconds
+    }
   }
   return (globalThis as any).__razumTaskDB
 }

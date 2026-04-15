@@ -84,10 +84,7 @@ export async function POST(req: NextRequest) {
     const reputationMultiplier = Math.min(miner.reputation / 100, 2)
     const reward = success !== false ? baseReward * reputationMultiplier : 0
 
-    // Record in database
-    recordTaskCompletion(miner.id, taskId, success !== false, reward)
-
-    // Complete task and resolve waiting promise
+    // Complete task FIRST (while status='assigned') — resolves chat callback
     const completed = completeTask(taskId, miner.id, {
       result: typeof result === 'string' ? result.slice(0, 100000) : '', // 100KB max
       success: success !== false,
@@ -98,6 +95,9 @@ export async function POST(req: NextRequest) {
     if (!completed) {
       return NextResponse.json({ error: 'Task not found or not assigned to you' }, { status: 404 })
     }
+
+    // Record miner stats AFTER completeTask succeeded (order matters: completeTask expects status='assigned')
+    recordTaskCompletion(miner.id, taskId, success !== false, reward)
 
     return NextResponse.json({
       ok: true,

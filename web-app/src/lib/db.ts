@@ -134,6 +134,31 @@ function getDB() {
       _db.exec(`ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0`)
     } catch {}
 
+    // Migrate: add apiKey column to users (for public API)
+    try {
+      _db.exec(`ALTER TABLE users ADD COLUMN apiKey TEXT DEFAULT ''`)
+    } catch {}
+
+    // Migrate: add publicKey column to miners (for ECDSA signing)
+    try {
+      _db.exec(`ALTER TABLE miners ADD COLUMN publicKey TEXT DEFAULT ''`)
+    } catch {}
+    _db.exec(`CREATE INDEX IF NOT EXISTS idx_users_apiKey ON users(apiKey)`)
+
+    // Create verifications table for node testing
+    _db.exec(`
+      CREATE TABLE IF NOT EXISTS verifications (
+        id TEXT PRIMARY KEY,
+        minerId TEXT NOT NULL,
+        challengeId TEXT NOT NULL,
+        passed INTEGER NOT NULL,
+        response TEXT DEFAULT '',
+        latencyMs INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_verifications_minerId ON verifications(minerId);
+    `)
+
     // Create email_tokens table for verification & password reset
     _db.exec(`
       CREATE TABLE IF NOT EXISTS email_tokens (
@@ -807,4 +832,46 @@ export function recordTaskCompletion(minerId: string, taskId: string, success: b
     console.error('[DB] Transaction error in recordTaskCompletion:', e)
     throw e
   }
+}
+
+// =====================
+// PUBLIC API KEY FUNCTIONS
+// =====================
+
+export { getDB }
+
+export function generateUserApiKey(userId: string): string {
+  const db = getDB()
+  const key = 'rzm_api_' + crypto.randomBytes(32).toString('hex')
+  db.prepare('UPDATE users SET apiKey = ? WHERE id = ?').run(key, userId)
+  return key
+}
+
+export function getUserByApiKey(apiKey: string): User | null {
+  const db = getDB()
+  const row = db.prepare('SELECT * FROM users WHERE apiKey = ?').get(apiKey) as any
+  if (!row) return null
+  return row as User
+}
+
+export function revokeUserApiKey(userId: string): boolean {
+  const db = getDB()
+  const result = db.prepare("UPDATE users SET apiKey = '' WHERE id = ?").run(userId)
+  return result.changes > 0
+}
+
+// =====================
+// MINER PUBLIC KEY FUNCTIONS
+// =====================
+
+export function updateMinerPublicKey(minerId: string, publicKey: string): boolean {
+  const db = getDB()
+  const result = db.prepare('UPDATE miners SET publicKey = ? WHERE id = ?').run(publicKey, minerId)
+  return result.changes > 0
+}
+
+export function getMinerPublicKey(minerId: string): string | null {
+  const db = getDB()
+  const row = db.prepare('SELECT publicKey FROM miners WHERE id = ?').get(minerId) as any
+  return row?.publicKey || null
 }

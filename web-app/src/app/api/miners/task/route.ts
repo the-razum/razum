@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getMinerByApiKey, recordTaskCompletion } from '@/lib/db'
 import { getNextTask, assignTask, completeTask, getQueueStats } from '@/lib/taskQueue'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { verifyMinerRequest } from '@/lib/minerAuth'
 
 // Max reward per task to prevent manipulation
 const MAX_TOKENS_PER_TASK = 4096
@@ -77,6 +78,17 @@ export async function POST(req: NextRequest) {
     const miner = getMinerByApiKey(apiKey)
     if (!miner) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    }
+
+    // Verify ECDSA signature if miner has registered a public key
+    const sigCheck = verifyMinerRequest(miner.id, text, {
+      signature: req.headers.get('x-miner-signature') || undefined,
+      timestamp: req.headers.get('x-miner-timestamp') || undefined,
+      nonce: req.headers.get('x-miner-nonce') || undefined,
+    })
+    if (!sigCheck.valid) {
+      console.warn(`[Miner] Signature verification FAILED for ${miner.id.slice(0, 8)}: ${sigCheck.reason}`)
+      return NextResponse.json({ error: 'Signature verification failed: ' + sigCheck.reason }, { status: 403 })
     }
 
     // Cap tokens to prevent reward manipulation

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Request too large' }, { status: 413 })
     }
 
-    const { name, walletAddress, gpuModel, vram, models } = JSON.parse(text)
+    const { name, walletAddress, gpuModel, vram, models, publicKey } = JSON.parse(text)
 
     // Validate required fields
     if (!name || !walletAddress) {
@@ -61,7 +61,18 @@ export async function POST(req: NextRequest) {
       modelsList
     )
 
-    console.log(`[Miner] Registered: ${miner.name} wallet=${walletAddress.slice(0, 10)}... ip=${ip}`)
+    // Save ECDSA public key if provided
+    if (publicKey && typeof publicKey === 'string' && publicKey.includes('BEGIN PUBLIC KEY')) {
+      try {
+        const { updateMinerPublicKey } = await import('@/lib/db')
+        updateMinerPublicKey(miner.id, publicKey)
+        console.log('[Miner] Public key registered for ' + miner.id.slice(0, 8))
+      } catch (e) {
+        console.error('[Miner] Failed to save public key:', e)
+      }
+    }
+
+    console.log(`[Miner] Registered: ${miner.name} wallet=${walletAddress.slice(0, 10)}... ip=${ip} ecdsa=${!!publicKey}`)
 
     return NextResponse.json({
       success: true,

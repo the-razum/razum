@@ -14,7 +14,7 @@ const CSRF_API_ROUTES = [
   '/api/account',
 ]
 // API routes exempt from CSRF (miners use API keys, payment callbacks come from Robokassa servers)
-const CSRF_EXEMPT = ['/api/miners', '/api/health', '/api/network', '/api/payment/callback', '/api/payment/webhook']
+const CSRF_EXEMPT = ['/api/miners', '/api/health', '/api/network', '/api/payment/callback', '/api/payment/webhook', '/api/v1']
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl

@@ -10,18 +10,18 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Razum AI — AI без границ. Без VPN. DeepSeek R1, Mistral, LLaMA',
+    default: 'Razum AI — Умный AI-ассистент. Qwen 3.5 и DeepSeek R1',
     template: '%s | Razum AI',
   },
-  description: 'Мощные AI-модели за 490₽/мес. DeepSeek R1, Mistral, LLaMA — без VPN из России. Оплата МИР/СБП. Поиск в интернете. Децентрализованная GPU-сеть.',
+  description: 'AI-ассистент на базе Qwen 3.5 и DeepSeek R1 за 490₽/мес. Без VPN из России. Оплата картой. Децентрализованная GPU-сеть.',
   manifest: '/manifest.json',
   metadataBase: new URL('https://airazum.com'),
   alternates: {
     canonical: 'https://airazum.com',
   },
   openGraph: {
-    title: 'Razum AI — AI без границ. Без VPN.',
-    description: '80% качества ChatGPT за 490₽. DeepSeek R1, Mistral, LLaMA. Без VPN из России. Оплата МИР/СБП. Зарабатывайте RZM-токены на GPU.',
+    title: 'Razum AI — Умный AI-ассистент',
+    description: 'AI-ассистент на Qwen 3.5 и DeepSeek R1 за 490₽/мес. Без VPN из России. Оплата картой.',
     url: 'https://airazum.com',
     siteName: 'Razum AI',
     images: [
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Razum AI — AI без границ. Без VPN.',
-    description: '80% качества ChatGPT за 490₽. DeepSeek R1. Без VPN из России. Оплата МИР/СБП. Зарабатывайте на GPU.',
+    title: 'Razum AI — Умный AI-ассистент',
+    description: 'AI на Qwen 3.5 и DeepSeek R1 за 490₽/мес. Без VPN. Оплата картой.',
     images: ['/og-image.png'],
   },
   appleWebApp: {
@@ -47,10 +47,10 @@ export const metadata: Metadata = {
     title: 'Razum AI',
   },
   keywords: [
-    'AI', 'искусственный интеллект', 'ChatGPT альтернатива', 'DeepSeek R1', 'Mistral', 'LLaMA',
+    'AI', 'искусственный интеллект', 'ChatGPT альтернатива', 'Qwen 3.5', 'DeepSeek R1', 'Qwen',
     'без VPN', 'Россия', 'нейросеть', 'AI чат', 'AI ассистент',
     'GPU майнинг', 'децентрализация', 'оплата МИР', 'СБП',
-    'AI без цензуры', 'DeepSeek', 'Razum AI',
+    'AI ассистент на русском', 'DeepSeek', 'Razum AI',
   ],
   robots: {
     index: true,

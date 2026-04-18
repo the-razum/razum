@@ -18,7 +18,7 @@ function JsonLd() {
         url: 'https://airazum.com',
         applicationCategory: 'Artificial Intelligence',
         operatingSystem: 'Web',
-        description: 'Децентрализованная AI-платформа с поддержкой DeepSeek R1. Без VPN, без цензуры. Оплата картой МИР и СБП.',
+        description: 'Децентрализованная AI-платформа с Qwen 3.5 и DeepSeek R1. Без VPN. Оплата картой.',
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -42,7 +42,7 @@ function JsonLd() {
           {
             '@type': 'Question',
             name: 'Какие способы оплаты принимает Razum AI?',
-            acceptedAnswer: { '@type': 'Answer', text: 'Карты МИР, Visa, Mastercard и СБП (Система быстрых платежей).' },
+            acceptedAnswer: { '@type': 'Answer', text: 'Карты МИР, Visa, Mastercard через Robokassa.' },
           },
           {
             '@type': 'Question',
@@ -157,8 +157,8 @@ export default function Home() {
               <span className="text-accent">Без VPN.</span>
             </h1>
             <p className="text-text2 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-              Мощные AI-модели по цене чашки кофе. DeepSeek R1, Mistral, LLaMA —
-              всё работает на децентрализованной сети тысяч GPU по всему миру.
+              Мощные AI-модели по цене чашки кофе. Qwen 3.5 и DeepSeek R1 —
+              всё работает на децентрализованной сети GPU по всему миру.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -181,8 +181,8 @@ export default function Home() {
                 <span className="text-text2 text-sm">запросов/день бесплатно</span>
               </div>
               <div>
-                <span className="text-accent font-bold text-3xl block">5+</span>
-                <span className="text-text2 text-sm">моделей на выбор</span>
+                <span className="text-accent font-bold text-3xl block">2</span>
+                <span className="text-text2 text-sm">модели AI на выбор</span>
               </div>
               <div>
                 <span className="text-accent font-bold text-3xl block">0.5с</span>
@@ -217,7 +217,7 @@ export default function Home() {
               <FeatureCard
                 icon="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                 title="Оплата МИР и СБП"
-                desc="Платите российскими картами и через СБП. Никаких иностранных подписок и обходных путей."
+                desc="Платите российскими картами. Никаких иностранных подписок и обходных путей."
               />
               <FeatureCard
                 icon="M13 10V3L4 14h7v7l9-11h-7z"
@@ -231,8 +231,8 @@ export default function Home() {
               />
               <FeatureCard
                 icon="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-                title="5+ AI-моделей"
-                desc="DeepSeek R1, Mistral, LLaMA, Qwen и другие. Выбирайте лучшую модель для каждой задачи."
+                title="Несколько AI-моделей"
+                desc="Qwen 3.5 для универсальных задач, DeepSeek R1 для логики и рассуждений. Новые модели добавляются регулярно."
               />
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-14">
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">Как это работает?</h2>
-              <p className="text-text2">Децентрализованная сеть — ваши запросы обрабатывают тысячи компьютеров</p>
+              <p className="text-text2">Децентрализованная сеть — ваши запросы обрабатывают компьютеры участников</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
               <StepCard
@@ -346,11 +346,11 @@ export default function Home() {
               />
               <FaqItem
                 q="Какие модели доступны?"
-                a="DeepSeek R1 (14B и 32B), Mistral 7B, LLaMA 3, Qwen 2.5 и другие. Мы постоянно добавляем новые модели. На бесплатном плане доступны все модели."
+                a="Qwen 3.5 9B — универсальная модель с отличным русским языком. DeepSeek R1 7B — модель с рассуждениями для логических задач. Мы постоянно добавляем новые модели."
               />
               <FaqItem
                 q="Чем отличается от ChatGPT?"
-                a="Razum AI стоит 490₽ вместо ~1800₽, работает без VPN из России, принимает оплату МИР/СБП, не имеет жёсткой цензуры. Качество ответов — около 80% от GPT-4, что достаточно для большинства задач."
+                a="Razum AI стоит 490₽ вместо ~1800₽, работает без VPN из России, принимает оплату картой, не имеет жёсткой цензуры. Качество ответов достаточно для большинства задач."
               />
               <FaqItem
                 q="Безопасно ли мои данные?"
@@ -362,7 +362,7 @@ export default function Home() {
               />
               <FaqItem
                 q="Как оплатить подписку?"
-                a="Картами МИР, Visa, Mastercard через ЮKassa или через Систему быстрых платежей (СБП). Всё в рублях, без конвертации."
+                a="Картами МИР, Visa, Mastercard через Robokassa. Всё в рублях, без конвертации."
               />
             </div>
           </div>

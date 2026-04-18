@@ -119,7 +119,7 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-3">Простые цены. Платите картой.</h1>
           <p className="text-text2 text-lg">
-            Оплата картой за минуту. Безопасно через Stripe.
+            Карта МИР, Visa, MasterCard. Без VPN, без валютных проблем.
           </p>
         </div>
 
@@ -183,7 +183,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-16 text-center text-text2 text-sm">
-          <p>Оплата банковской картой через Stripe. Скоро: оплата RZM-токенами со скидкой 20%. Для бизнеса — <a href="mailto:support@airazum.com" className="text-accent hover:underline">напишите нам</a>.</p>
+          <p>Оплата картой МИР, Visa, MasterCard. Скоро: оплата RZM-токенами со скидкой 20%. Для бизнеса — <a href="mailto:support@airazum.com" className="text-accent hover:underline">напишите нам</a>.</p>
         </div>
       </div>
     </div>

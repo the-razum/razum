@@ -13,7 +13,7 @@ export default function PrivacyPage() {
               <li><strong>Данные аккаунта:</strong> email, имя, дата регистрации</li>
               <li><strong>Данные использования:</strong> количество запросов, выбранная модель, тарифный план</li>
               <li><strong>Технические данные:</strong> IP-адрес, тип браузера, для обеспечения безопасности</li>
-              <li><strong>Данные оплаты:</strong> обрабатываются платёжной системой Stripe, мы не храним данные карт</li>
+              <li><strong>Данные оплаты:</strong> обрабатываются платёжной системой Robokassa, мы не храним данные карт</li>
             </ul>
           </section>
 
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-white mb-3">5. Передача данных третьим лицам</h2>
             <p>Мы не продаём и не передаём ваши персональные данные третьим лицам, за исключением:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>Платёжные провайдеры (Stripe) — для обработки оплат</li>
+              <li>Платёжные провайдеры (Robokassa) — для обработки оплат</li>
               <li>По требованию закона — при наличии судебного решения</li>
             </ul>
           </section>

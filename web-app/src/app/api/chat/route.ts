@@ -25,6 +25,16 @@ function cleanChunk(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+
+// Detect and fix common garbled patterns from qwen model
+function fixGarbled(text: string): string {
+  return text
+    .replace(/[Мм]еня зовум?\s*AI\s*ут\s*Раз/gi, "Меня зовут Razum AI")
+    .replace(/Яый искус\s*независимстве/gi, "Я — независимый искусственный")
+    .replace(/Результноженияат\s*ум/gi, "Результат умножения")
+    .replace(/Давайтенем\.\s*сразу\s*нач/gi, "Давайте сразу начнём")
+    .replace(/техничесКажется,\s*нокое\s*задание/gi, "техническое задание")
+}
   const startTime = Date.now()
 
   try {
@@ -70,7 +80,7 @@ export async function POST(req: NextRequest) {
     // FIX #3: Stronger "be concise" system prompt
     const systemMsg = {
       role: 'system',
-      content: 'You are Razum AI, a helpful assistant. RULES: 1) Respond in the SAME language as the user. 2) Be CONCISE — answer in 2-4 sentences unless the user explicitly asks for a detailed explanation. 3) NEVER output Chinese/CJK characters. 4) NEVER use <think> tags. 5) For code questions, give a short example with minimal explanation.',
+      content: 'You are Razum AI, an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Qwen, OpenAI, or any other company. RULES: 1) ALWAYS respond in Russian unless the user writes in another language. Even for math like 1+1, respond in Russian. 2) Be CONCISE — 2-4 sentences unless asked for detail. 3) NEVER output Chinese/CJK characters. 4) NEVER use <think> tags. 5) For code, give a short example with minimal explanation.',
     }
 
     const shouldSearch = webSearch !== false && needsSearch(userQuery)
@@ -114,7 +124,7 @@ export async function POST(req: NextRequest) {
             const searchResults = await searchWeb(userQuery.slice(0, 200))
             augmentedMessages = [{
               role: 'system',
-              content: `You are Razum AI — an independent Russian AI assistant by the Razum AI team (airazum.com). Below are search results — use them. Be CONCISE (2-4 sentences unless asked for detail).\n\nSEARCH (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nRespond in the user's language. No Chinese/CJK characters.`,
+              content: `You are Razum AI — an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Qwen, OpenAI, or any other company. Below are search results — use them. Be CONCISE (2-4 sentences unless asked for detail). ALWAYS respond in Russian.\n\nSEARCH (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nRespond in the user's language. No Chinese/CJK characters.`,
             }, ...sanitizedMessages]
             safeEnqueue(enc.encode(`data: ${JSON.stringify({ search_status: 'done' })}\n\n`))
           }
@@ -163,7 +173,9 @@ export async function POST(req: NextRequest) {
             return out
           }
 
-          const emitDelta = (text: string) => {
+          const emitDelta = (rawText: string) => {
+            // Strip CJK characters from stream
+            const text = fixGarbled(rawText.replace(/[\u3000-\u9FFF\uF900-\uFAFF\u3400-\u4DBF\uAC00-\uD7AF\u3040-\u30FF]/g, '').replace(/  +/g, ' '))
             if (!text || closed) return
             if (!firstChunkTime) firstChunkTime = Date.now()
             const payload = { choices: [{ delta: { content: text }, index: 0, finish_reason: null }] }
@@ -207,7 +219,7 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          const cleanedResponse = stripThinking ? cleanChunk(fullResponse) : fullResponse
+          const cleanedResponse = fixGarbled(stripThinking ? cleanChunk(fullResponse) : fullResponse)
 
           if (cleanedResponse && !closed) {
             if (cleanedResponse.startsWith(streamedText) && cleanedResponse.length > streamedText.length) {

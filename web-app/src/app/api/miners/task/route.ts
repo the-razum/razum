@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getMinerByApiKey, recordTaskCompletion } from '@/lib/db'
 import { getNextTask, assignTask, completeTask, getQueueStats } from '@/lib/taskQueue'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { calculateTaskReward } from '@/lib/rewards'
 import { verifyMinerRequest } from '@/lib/minerAuth'
 
 // Max reward per task to prevent manipulation
@@ -91,11 +92,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Signature verification failed: ' + sigCheck.reason }, { status: 403 })
     }
 
-    // Cap tokens to prevent reward manipulation
+    // Epoch-based reward calculation (inspired by Gonka)
     const cappedTokens = Math.min(Math.max(0, Number(tokensUsed) || 0), MAX_TOKENS_PER_TASK)
-    const baseReward = cappedTokens * REWARD_PER_TOKEN
-    const reputationMultiplier = Math.min(miner.reputation / 100, 2)
-    const reward = success !== false ? baseReward * reputationMultiplier : 0
+    const taskStartTime = Date.now() // approximate latency
+    const { reward } = calculateTaskReward(
+      cappedTokens,
+      miner.reputation,
+      taskStartTime, // latency approximation
+      success !== false
+    )
 
     // Complete task FIRST (while status='assigned') — resolves chat callback
     const completed = completeTask(taskId, miner.id, {

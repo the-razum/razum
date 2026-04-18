@@ -1,0 +1,26 @@
+{
+  "name": "razum-openai",
+  "version": "0.1.0",
+  "description": "Razum AI SDK — Drop-in OpenAI replacement for decentralized AI inference",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "openai": ">=4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["razum", "ai", "openai", "llm", "decentralized", "gpu", "inference"],
+  "author": "Razum AI Team <dev@airazum.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/the-razum/razum-openai"
+  },
+  "homepage": "https://airazum.com"
+}

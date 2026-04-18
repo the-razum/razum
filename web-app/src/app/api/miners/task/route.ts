@@ -20,20 +20,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
     }
 
-    // Rate limit polling: 60 requests per minute per miner
+    // Rate limit polling: 200 requests per minute per miner (poll every ~400ms)
     const limit = checkRateLimit({
-      store: 'miner-poll', key: miner.id, maxAttempts: 60, windowMs: 60 * 1000,
+      store: 'miner-poll', key: miner.id, maxAttempts: 200, windowMs: 60 * 1000,
     })
     if (!limit.allowed) {
       return NextResponse.json({ task: null, message: 'Polling too fast' }, { status: 429 })
     }
 
-    const stats = getQueueStats()
-    console.log(`[MinerPoll] queue=${stats.total} pending=${stats.pending} minerModels=${JSON.stringify(miner.models)}`)
-    console.log(`[MinerPoll] miner=${miner.id.slice(0, 8)} models=${JSON.stringify(miner.models)} queue=${stats.pending}/${stats.total}`)
-
     const task = getNextTask(miner.models)
-    console.log(`[MinerPoll] task=${task ? task.id.slice(0, 8) : 'null'}`)
+
+    // Only log when there IS a task (reduce log spam)
+    if (task) {
+      const stats = getQueueStats()
+      console.log(`[MinerPoll] TASK ${task.id.slice(0, 8)} → miner=${miner.id.slice(0, 8)} queue=${stats.pending}/${stats.total}`)
+    }
 
     if (!task) {
       return NextResponse.json({ task: null, message: 'No tasks available' })
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Task not found or not assigned to you' }, { status: 404 })
     }
 
-    // Record miner stats AFTER completeTask succeeded (order matters: completeTask expects status='assigned')
+    // Record miner stats AFTER completeTask succeeded
     recordTaskCompletion(miner.id, taskId, success !== false, reward)
 
     return NextResponse.json({

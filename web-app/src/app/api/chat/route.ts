@@ -8,7 +8,7 @@ import { addTaskToQueue, getQueueStats, readStreamChunks, getTaskResult } from '
 const MAX_REQUEST_SIZE = 100 * 1024
 const MAX_MESSAGES = 50
 
-// Map UI model id â real Ollama model name (must match what miners advertise)
+// Map UI model id → real Ollama model name (must match what miners advertise)
 const MODEL_MAP: Record<string, string> = {
   'qwen3.5-9b': process.env.MODEL_QWEN || 'qwen3.5:9b',
 }
@@ -17,9 +17,9 @@ const MODEL_MAP: Record<string, string> = {
 function cleanChunk(text: string): string {
   return text
     .replace(/<think>[\s\S]*?<\/think>/g, '')
-    .replace(/[\u2580-\u259F\u2588]/g, '')  // block elements (â â â etc.)
-    .replace(/\\u[0-9a-fA-F]{4}/g, '')     // escaped unicode like "u2588"
-    .replace(/\u2588/g, '').replace(/u2588/g, '')                 // explicit full block char
+    .replace(/[\u2580-\u259F\u2588]/g, '')
+    .replace(/\\u[0-9a-fA-F]{4}/g, '')
+    .replace(/\u2588/g, '').replace(/u2588/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -30,14 +30,14 @@ export async function POST(req: NextRequest) {
   try {
     const contentLength = parseInt(req.headers.get('content-length') || '0')
     if (contentLength > MAX_REQUEST_SIZE) {
-      return json({ error: 'ÐÐ°Ð¿ÑÐ¾Ñ ÑÐ»Ð¸ÑÐºÐ¾Ð¼ Ð±Ð¾Ð»ÑÑÐ¾Ð¹' }, 413)
+      return json({ error: 'Запрос слишком большой' }, 413)
     }
 
     const body = await req.json()
     const { messages, model, webSearch, chatId: reqChatId, thinkingEnabled = false } = body
 
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
-      return json({ error: 'ÐÐµÐºÐ¾ÑÑÐµÐºÑÐ½ÑÐ¹ Ð·Ð°Ð¿ÑÐ¾Ñ' }, 400)
+      return json({ error: 'Некорректный запрос' }, 400)
     }
 
     // Rate limiting
@@ -47,13 +47,13 @@ export async function POST(req: NextRequest) {
     if (userId) {
       const { allowed, limit } = checkAndIncrementRequests(userId)
       if (!allowed) {
-        return json({ error: `ÐÐ¸Ð¼Ð¸Ñ Ð¸ÑÑÐµÑÐ¿Ð°Ð½ (${limit} Ð·Ð°Ð¿ÑÐ¾ÑÐ¾Ð²/Ð´ÐµÐ½Ñ). ÐÐ±Ð½Ð¾Ð²Ð¸ÑÐµ ÑÐ°ÑÐ¸Ñ.`, upgrade: true }, 429)
+        return json({ error: `Лимит исчерпан (${limit} запросов/день). Обновите тариф.`, upgrade: true }, 429)
       }
     } else {
       const ip = getClientIP(req)
       const { allowed } = checkAnonLimit(ip)
       if (!allowed) {
-        return json({ error: 'ÐÐ¸Ð¼Ð¸Ñ Ð´Ð»Ñ Ð³Ð¾ÑÑÐµÐ¹ Ð¸ÑÑÐµÑÐ¿Ð°Ð½ (10/Ð´ÐµÐ½Ñ). ÐÐ°ÑÐµÐ³Ð¸ÑÑÑÐ¸ÑÑÐ¹ÑÐµÑÑ Ð´Ð»Ñ 30/Ð´ÐµÐ½Ñ.', register: true }, 429)
+        return json({ error: 'Лимит для гостей исчерпан (10/день). Зарегистрируйтесь для 30/день.', register: true }, 429)
       }
     }
 
@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
       content: typeof m.content === 'string' ? m.content.slice(0, 8000) : '',
     }))
 
-    // System prompt for all queries
+    // FIX #3: Stronger "be concise" system prompt
     const systemMsg = {
       role: 'system',
-      content: 'You are Razum AI, a friendly and helpful assistant. CRITICAL RULES: 1) Always respond in the SAME language the user writes in. If the user writes in Russian, respond in Russian. If in English, respond in English. 2) NEVER output Chinese characters, Japanese characters, or any CJK symbols. 3) NEVER use <think> tags in your visible response. 4) Be concise, natural, and helpful.',
+      content: 'You are Razum AI, a helpful assistant. RULES: 1) Respond in the SAME language as the user. 2) Be CONCISE — answer in 2-4 sentences unless the user explicitly asks for a detailed explanation. 3) NEVER output Chinese/CJK characters. 4) NEVER use <think> tags. 5) For code questions, give a short example with minimal explanation.',
     }
 
     const shouldSearch = webSearch !== false && needsSearch(userQuery)
@@ -78,60 +78,53 @@ export async function POST(req: NextRequest) {
     // Create or retrieve chat for logged-in users
     let chatId = reqChatId || null
     if (userId && !chatId) {
-      // Create new chat with first user message as title
-      const title = userQuery.slice(0, 80) || 'ÐÐ¾Ð²ÑÐ¹ ÑÐ°Ñ'
+      const title = userQuery.slice(0, 80) || 'Новый чат'
       const chat = createChat(userId, title, model || 'qwen3.5-9b')
       chatId = chat.id
     }
-    // Save user message
     if (userId && chatId) {
       addChatMessage(chatId, 'user', userQuery)
     }
 
     const stats = getQueueStats()
-    console.log(`[Chat] model=${actualModel} search=${shouldSearch} user=${userId || 'anon'} queue=${stats.pending}/${stats.total} chat=${chatId?.slice(0, 8) || 'none'} q="${userQuery.slice(0, 60)}"`)
+    console.log(`[Chat] q="${userQuery.slice(0, 60)}" model=${actualModel} user=${userId || 'anon'} queue=${stats.pending}`)
 
-    // Defer search and task creation â will be done inside the stream
     let augmentedMessages = [systemMsg, ...sanitizedMessages]
 
     const enc = new TextEncoder()
 
-    // Create SSE stream that forwards chunks from miner in real-time
     const stream = new ReadableStream({
       async start(controller) {
         let closed = false
 
-        function safeEnqueue(data: Uint8Array) {
+        const safeEnqueue = (data: Uint8Array) => {
           if (closed) return
           try { controller.enqueue(data) } catch { closed = true }
         }
 
-        function safeClose() {
+        const safeClose = () => {
           if (closed) return
           try { controller.close() } catch {}
           closed = true
         }
 
         try {
-          // Perform web search inside stream so client gets status updates
           if (shouldSearch) {
             safeEnqueue(enc.encode(`data: ${JSON.stringify({ search_status: 'searching' })}\n\n`))
             const searchResults = await searchWeb(userQuery.slice(0, 200))
             augmentedMessages = [{
               role: 'system',
-              content: `You are Razum AI — an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Yandex, Google, OpenAI, Meta, or any other company. Below are fresh search results — use them in your answer.\n\nSEARCH RESULTS (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nCRITICAL: Respond in the SAME language as the user. NEVER use Chinese/CJK characters. Be concise and helpful.`,
+              content: `You are Razum AI — an independent Russian AI assistant by the Razum AI team (airazum.com). Below are search results — use them. Be CONCISE (2-4 sentences unless asked for detail).\n\nSEARCH (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nRespond in the user's language. No Chinese/CJK characters.`,
             }, ...sanitizedMessages]
             safeEnqueue(enc.encode(`data: ${JSON.stringify({ search_status: 'done' })}\n\n`))
           }
 
-          // Now create the task with (possibly augmented) messages
           const { taskId, promise: taskPromise } = addTaskToQueue({
             model: actualModel,
             prompt: userQuery,
             messages: augmentedMessages,
           })
 
-          // Track task completion
           let taskCompleted = false
           let minerResult: any = null
           let taskError: any = null
@@ -141,14 +134,14 @@ export async function POST(req: NextRequest) {
             .catch(e => { taskError = e; taskCompleted = true })
 
           const stripThinking = !thinkingEnabled
-          const MAX_WAIT = 120_000  // 120s max wait for task completion
+          const MAX_WAIT = 120_000
           const waitStart = Date.now()
           let keepaliveCount = 0
-          let streamedText = ''       // what we have already forwarded to the client
-          let nextChunkIdx = 0        // next index to read from server-side chunk buffer
-          let inThinkBlock = false    // stateful <think>...</think> filter across chunks
+          let streamedText = ''
+          let nextChunkIdx = 0
+          let inThinkBlock = false
+          let firstChunkTime = 0
 
-          // Stateful filter: emit content but swallow anything between <think>...</think>.
           const filterThink = (input: string): string => {
             if (!stripThinking) return input
             let buf = input
@@ -172,17 +165,15 @@ export async function POST(req: NextRequest) {
 
           const emitDelta = (text: string) => {
             if (!text || closed) return
+            if (!firstChunkTime) firstChunkTime = Date.now()
             const payload = { choices: [{ delta: { content: text }, index: 0, finish_reason: null }] }
             safeEnqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
             streamedText += text
           }
 
-          console.log(`[Chat] Awaiting task ${taskId.slice(0, 8)}...`)
-
-          // Drain any new chunks from the miner while we wait for completion
           while (!taskCompleted && !closed) {
             if (Date.now() - waitStart > MAX_WAIT) {
-              console.warn(`[Chat] Wait timeout for task ${taskId.slice(0, 8)}`)
+              console.warn(`[Chat] Timeout task ${taskId.slice(0, 8)}`)
               break
             }
             const s = readStreamChunks(taskId, nextChunkIdx)
@@ -193,14 +184,13 @@ export async function POST(req: NextRequest) {
               nextChunkIdx += s.chunks.length
             } else {
               keepaliveCount++
-              if (keepaliveCount % 30 === 0) {
+              if (keepaliveCount % 40 === 0) {
                 safeEnqueue(enc.encode(`: keepalive\n\n`))
               }
             }
-            await new Promise(r => setTimeout(r, 50))
+            await new Promise(r => setTimeout(r, 40))
           }
 
-          // Resolve the authoritative full response (miner sends it at end of task)
           const fileResult = !minerResult ? getTaskResult(taskId) : null
           const finalResult = minerResult || fileResult
           let fullResponse = ''
@@ -219,15 +209,12 @@ export async function POST(req: NextRequest) {
 
           const cleanedResponse = stripThinking ? cleanChunk(fullResponse) : fullResponse
 
-          // Flush any tail we haven't streamed yet (chunks might have lagged behind the final answer)
           if (cleanedResponse && !closed) {
             if (cleanedResponse.startsWith(streamedText) && cleanedResponse.length > streamedText.length) {
               emitDelta(cleanedResponse.slice(streamedText.length))
             } else if (streamedText.length === 0) {
-              // Nothing streamed at all — emit full response now
               emitDelta(cleanedResponse)
             }
-            // else: streamed text diverges from cleaned (unlikely) — accept what we already sent
           } else if (!closed && taskError) {
             const errMsg = taskError.message || 'Нет доступных майнеров'
             safeEnqueue(enc.encode(`data: ${JSON.stringify({
@@ -243,15 +230,16 @@ export async function POST(req: NextRequest) {
           safeClose()
 
           if (userId && chatId && cleanedResponse) {
-            try {
-              addChatMessage(chatId, 'assistant', cleanedResponse)
-            } catch (e) {
-              console.error('[Chat] Failed to save assistant message:', e)
+            try { addChatMessage(chatId, 'assistant', cleanedResponse) } catch (e) {
+              console.error('[Chat] Save msg err:', e)
             }
           }
 
-          const minerId = finalResult?.minerId || 'unknown'
-          console.log(`[Chat] Done in ${Date.now() - startTime}ms miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId} tok=${finalResult?.tokensUsed || 0} chat=${chatId?.slice(0, 8) || 'none'} src=${resultSource} len=${cleanedResponse.length}`)
+          // FIX #9: Log timing metrics
+          const ttfb = firstChunkTime ? firstChunkTime - startTime : -1
+          const total = Date.now() - startTime
+          const minerId = finalResult?.minerId || '?'
+          console.log(`[Chat] Done ${total}ms ttfb=${ttfb}ms tok=${finalResult?.tokensUsed || 0} len=${cleanedResponse.length} src=${resultSource} miner=${typeof minerId === 'string' ? minerId.slice(0, 8) : minerId}`)
         } catch (e) {
           console.error('[Chat] Stream error:', e)
           safeEnqueue(enc.encode(`data: [DONE]\n\n`))
@@ -267,7 +255,6 @@ export async function POST(req: NextRequest) {
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no',
         'X-Search-Used': shouldSearch ? 'true' : 'false',
-        'X-Thinking-Used': thinkingEnabled ? 'true' : 'false',
         ...(chatId ? { 'X-Chat-Id': chatId } : {}),
       },
     })

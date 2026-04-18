@@ -29,12 +29,18 @@ export async function POST(req: NextRequest) {
 // Detect and fix common garbled patterns from qwen model
 function fixGarbled(text: string): string {
   return text
+    // Fix garbled identity patterns
     .replace(/[Мм]еня зовум?\s*AI\s*ут\s*Раз/gi, "Меня зовут Razum AI")
+    .replace(/[Мм]еня зовут Раз,?\s*и?у?м?\s*AI/gi, "Меня зовут Razum AI")
     .replace(/Яый искус\s*независимстве/gi, "Я — независимый искусственный")
+    .replace(/независимственным интеллекым искустом/gi, "независимый искусственный интеллект")
+    .replace(/искусственныйлект,?\s*интел/gi, "искусственный интеллект,")
+    // Fix general garbled word patterns (word split and reordered)
     .replace(/Результноженияат\s*ум/gi, "Результат умножения")
     .replace(/Давайтенем\.\s*сразу\s*нач/gi, "Давайте сразу начнём")
     .replace(/техничесКажется,\s*нокое\s*задание/gi, "техническое задание")
 }
+
   const startTime = Date.now()
 
   try {

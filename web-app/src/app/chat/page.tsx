@@ -17,6 +17,7 @@ type ChatInfo = {
 
 const MODELS = [
   { id: 'qwen3.5-9b', name: 'Qwen 3.5 9B', desc: 'Универсальная, отличный русский' },
+  { id: 'deepseek-r1-7b', name: 'DeepSeek R1 7B', desc: 'Рассуждения и логика' },
 ]
 
 type UserInfo = {

@@ -1,52 +1,41 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
-// SMTP configuration — supports any provider (Yandex, Gmail, Mailgun, etc.)
-const SMTP_HOST = process.env.SMTP_HOST || ''
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465')
-const SMTP_USER = process.env.SMTP_USER || ''
-const SMTP_PASS = process.env.SMTP_PASS || ''
-const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER
+const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
 const APP_URL = process.env.NEXT_PUBLIC_URL || 'https://airazum.com'
+const FROM_EMAIL = process.env.EMAIL_FROM || 'Razum AI <noreply@airazum.com>'
 
-let transporter: any = null
+let resend: Resend | null = null
 
-function getTransporter() {
-  if (!transporter) {
-    if (!SMTP_HOST) {
-      console.warn('[Email] SMTP not configured — emails will be logged to console')
+function getResend(): Resend | null {
+  if (!resend) {
+    if (!RESEND_API_KEY) {
+      console.warn('[Email] RESEND_API_KEY not set — emails will be logged to console')
       return null
     }
-    const isLocalhost = SMTP_HOST === 'localhost' || SMTP_HOST === '127.0.0.1'
-    const options: any = {
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
-    }
-    // Skip auth for local postfix (no credentials needed)
-    if (SMTP_USER && SMTP_PASS) {
-      options.auth = { user: SMTP_USER, pass: SMTP_PASS }
-    }
-    // For localhost, disable TLS verification
-    if (isLocalhost) {
-      options.secure = false
-      options.tls = { rejectUnauthorized: false }
-    }
-    transporter = nodemailer.createTransport(options)
+    resend = new Resend(RESEND_API_KEY)
   }
-  return transporter
+  return resend
 }
 
-// Send email or log to console in dev mode
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  const t = getTransporter()
-  if (!t) {
+  const client = getResend()
+  if (!client) {
     console.log(`[Email] TO: ${to}`)
     console.log(`[Email] SUBJECT: ${subject}`)
-    console.log(`[Email] BODY: ${html.replace(/<[^>]+>/g, '')}`)
-    return true // Don't block registration in dev
+    console.log(`[Email] (dev mode — no API key)`)
+    return true
   }
   try {
-    await t.sendMail({ from: `"Razum AI" <${SMTP_FROM}>`, to, subject, html })
+    const { error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html,
+    })
+    if (error) {
+      console.error('[Email] Resend error:', error)
+      return false
+    }
     console.log(`[Email] Sent to ${to}: ${subject}`)
     return true
   } catch (e) {
@@ -65,7 +54,7 @@ const STYLE = `
 
 const BTN = `
   display: inline-block; padding: 12px 32px;
-  background: #4ade80; color: #0d1017; font-weight: 600;
+  background: #00e59b; color: #0d1017; font-weight: 600;
   text-decoration: none; border-radius: 8px; font-size: 16px;
 `
 
@@ -73,7 +62,7 @@ export async function sendVerificationEmail(to: string, name: string, token: str
   const link = `${APP_URL}/verify-email?token=${token}`
   return sendEmail(to, 'Подтвердите email — Razum AI', `
     <div style="${STYLE}">
-      <h2 style="color: #4ade80; margin-top: 0;">Razum AI</h2>
+      <h2 style="color: #00e59b; margin-top: 0;">Razum AI</h2>
       <p>Привет, ${name}!</p>
       <p>Подтвердите ваш email для завершения регистрации:</p>
       <p style="text-align: center; margin: 24px 0;">
@@ -81,7 +70,7 @@ export async function sendVerificationEmail(to: string, name: string, token: str
       </p>
       <p style="font-size: 13px; color: #888;">
         Или скопируйте ссылку:<br/>
-        <a href="${link}" style="color: #4ade80; word-break: break-all;">${link}</a>
+        <a href="${link}" style="color: #00e59b; word-break: break-all;">${link}</a>
       </p>
       <p style="font-size: 12px; color: #666; margin-top: 24px;">
         Ссылка действительна 24 часа. Если вы не регистрировались — просто проигнорируйте это письмо.
@@ -94,7 +83,7 @@ export async function sendPasswordResetEmail(to: string, name: string, token: st
   const link = `${APP_URL}/reset-password?token=${token}`
   return sendEmail(to, 'Сброс пароля — Razum AI', `
     <div style="${STYLE}">
-      <h2 style="color: #4ade80; margin-top: 0;">Razum AI</h2>
+      <h2 style="color: #00e59b; margin-top: 0;">Razum AI</h2>
       <p>Привет, ${name}!</p>
       <p>Вы запросили сброс пароля. Нажмите кнопку ниже:</p>
       <p style="text-align: center; margin: 24px 0;">
@@ -102,7 +91,7 @@ export async function sendPasswordResetEmail(to: string, name: string, token: st
       </p>
       <p style="font-size: 13px; color: #888;">
         Или скопируйте ссылку:<br/>
-        <a href="${link}" style="color: #4ade80; word-break: break-all;">${link}</a>
+        <a href="${link}" style="color: #00e59b; word-break: break-all;">${link}</a>
       </p>
       <p style="font-size: 12px; color: #666; margin-top: 24px;">
         Ссылка действительна 1 час. Если вы не запрашивали сброс — просто проигнорируйте это письмо.

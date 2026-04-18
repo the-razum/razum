@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 const plans = [
   {
@@ -10,7 +11,7 @@ const plans = [
     price: '0 ₽',
     period: '',
     desc: 'Без регистрации',
-    features: ['10 запросов/день (гость)', '30 запросов/день (аккаунт)', 'DeepSeek R1 + Mistral', 'Поиск в интернете'],
+    features: ['30 запросов/день', 'Модель Qwen 3.5', 'Без регистрации или с аккаунтом', 'История чатов'],
     cta: 'Начать бесплатно',
     featured: false,
   },
@@ -20,7 +21,7 @@ const plans = [
     price: '490 ₽',
     period: '/мес',
     desc: 'Дешевле чашки кофе',
-    features: ['500 запросов/день', 'Все модели', 'Поиск в интернете', 'Приоритетная очередь'],
+    features: ['500 запросов/день', 'Все модели AI', 'Приоритетная очередь', 'Email-поддержка'],
     cta: 'Подключить',
     featured: false,
   },
@@ -30,7 +31,7 @@ const plans = [
     price: '990 ₽',
     period: '/мес',
     desc: 'Для ежедневной работы',
-    features: ['2 000 запросов/день', 'Быстрые ноды', 'Поддержка в Telegram', 'Приоритетная очередь'],
+    features: ['2 000 запросов/день', 'Быстрые ноды', 'Все модели AI', 'Поддержка в Telegram'],
     cta: 'Подключить',
     featured: true,
   },
@@ -40,7 +41,7 @@ const plans = [
     price: '1 990 ₽',
     period: '/мес',
     desc: 'Для профессионалов',
-    features: ['Безлимит запросов', 'Все модели + быстрые ноды', 'Приоритетная поддержка 24/7', 'Ранний доступ к новым функциям'],
+    features: ['Безлимит запросов', 'Все модели + быстрые ноды', 'Приоритет 24/7', 'Ранний доступ к новинкам'],
     cta: 'Подключить',
     featured: false,
   },
@@ -49,8 +50,13 @@ const plans = [
 export default function PricingPage() {
   const [currentPlan, setCurrentPlan] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('payment') === 'cancelled') {
+      setCancelled(true)
+      setTimeout(() => setCancelled(false), 5000)
+    }
     fetch('/api/auth/me').then(r => r.json()).then(data => {
       if (data.user) setCurrentPlan(data.user.plan)
     }).catch(() => {})
@@ -113,9 +119,15 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-3">Простые цены. Платите картой.</h1>
           <p className="text-text2 text-lg">
-            Карта МИР, СБП, ЮKassa. Без VPN, без валютных проблем.
+            Оплата картой за минуту. Безопасно через Stripe.
           </p>
         </div>
+
+        {cancelled && (
+          <div className="mb-6 p-4 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm text-center">
+            Оплата отменена. Вы можете выбрать тариф заново.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map(plan => (
@@ -171,7 +183,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-16 text-center text-text2 text-sm">
-          <p>Оплата картой МИР, СБП. Скоро: оплата RZM-токенами со скидкой 20%. Для бизнеса — <a href="mailto:support@airazum.com" className="text-accent hover:underline">напишите нам</a>.</p>
+          <p>Оплата банковской картой через Stripe. Скоро: оплата RZM-токенами со скидкой 20%. Для бизнеса — <a href="mailto:support@airazum.com" className="text-accent hover:underline">напишите нам</a>.</p>
         </div>
       </div>
     </div>

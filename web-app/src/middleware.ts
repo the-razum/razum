@@ -82,7 +82,31 @@ export function middleware(req: NextRequest) {
     return new NextResponse('Not Found', { status: 404 })
   }
 
-  return NextResponse.next()
+
+  // --- CORS Headers ---
+  const response = NextResponse.next()
+  const origin = req.headers.get("origin") || ""
+  const allowedOrigins = [
+    "https://airazum.com",
+    "https://www.airazum.com",
+    "http://localhost:3000",
+  ]
+  if (allowedOrigins.includes(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin)
+  }
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+  response.headers.set("Access-Control-Max-Age", "86400")
+  response.headers.set("X-Content-Type-Options", "nosniff")
+  response.headers.set("X-Frame-Options", "DENY")
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return new NextResponse(null, { status: 200, headers: response.headers })
+  }
+
+  return response
 }
 
 export const config = {

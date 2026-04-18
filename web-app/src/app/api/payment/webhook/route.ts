@@ -1,95 +1,114 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { upgradePlan } from '@/lib/db'
-import crypto from 'crypto'
-import { getClientIP } from '@/lib/rateLimit'
+import { NextRequest, NextResponse } from "next/server"
+import crypto from "crypto"
+import { completePayment, upgradePlan, getPaymentById } from "@/lib/db"
 
-// ЮKassa IP whitelist for webhook verification
-const YUKASSA_IP_PREFIXES = [
-  '185.71.76.', '185.71.77.', '77.75.153.', '77.75.156.',
-  '77.75.154.', '77.75.155.', '2a02:5180:0:'
-]
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || ""
+const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || ""
 
-function verifyYukassaIP(req: NextRequest): boolean {
-  if (!process.env.YUKASSA_SECRET_KEY) return false // not in production mode
-  const ip = getClientIP(req)
-  return YUKASSA_IP_PREFIXES.some(prefix => ip.startsWith(prefix))
+function verifyStripeSignature(payload: string, signature: string, secret: string): boolean {
+  if (!secret) return false
+  const parts = signature.split(",").reduce((acc, part) => {
+    const [k, v] = part.split("=")
+    acc[k] = v
+    return acc
+  }, {} as Record<string, string>)
+
+  const timestamp = parts["t"]
+  const sig = parts["v1"]
+  if (!timestamp || !sig) return false
+
+  // Check timestamp is within 5 minutes
+  const age = Math.abs(Date.now() / 1000 - parseInt(timestamp))
+  if (age > 300) return false
+
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${payload}`)
+    .digest("hex")
+
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))
 }
 
-// ЮKassa webhook handler (production)
 export async function POST(req: NextRequest) {
   try {
-    const ip = getClientIP(req)
+    const body = await req.text()
+    const signature = req.headers.get("stripe-signature") || ""
 
-    // In production, verify IP
-    if (process.env.YUKASSA_SECRET_KEY && !verifyYukassaIP(req)) {
-      console.warn(`[Webhook] Rejected from IP: ${ip}`)
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Verify signature (skip in dev)
+    if (STRIPE_WEBHOOK_SECRET && !verifyStripeSignature(body, signature, STRIPE_WEBHOOK_SECRET)) {
+      console.warn("[Webhook] Invalid Stripe signature")
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
-    const body = await req.json()
+    const event = JSON.parse(body)
+    console.log(`[Webhook] Stripe event: ${event.type}`)
 
-    if (body.event === 'payment.succeeded') {
-      const payment = body.object
-      const { userId, plan } = payment.metadata || {}
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object
+        const { userId, plan, paymentId } = session.metadata || {}
 
-      if (userId && plan) {
-        const success = upgradePlan(userId, plan)
-        console.log(`[Webhook] Payment ${payment.id}: user=${userId} plan=${plan} success=${success} ip=${ip}`)
-      } else {
-        console.warn(`[Webhook] Missing metadata in payment: ${payment.id}`)
+        if (userId && plan) {
+          // Activate the plan
+          upgradePlan(userId, plan)
+
+          // Complete payment record
+          if (paymentId) {
+            completePayment(paymentId, session.id || session.payment_intent || "")
+          }
+
+          console.log(`[Webhook] Plan activated: user=${userId} plan=${plan} session=${session.id}`)
+        }
+        break
       }
+
+      case "invoice.paid": {
+        // Recurring subscription payment
+        const invoice = event.data.object
+        const customerId = invoice.customer
+
+        // Get customer metadata via Stripe API
+        if (STRIPE_SECRET && customerId) {
+          try {
+            const resp = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
+              headers: { "Authorization": `Bearer ${STRIPE_SECRET}` },
+            })
+            const customer = await resp.json()
+            const userId = customer.metadata?.userId
+            const plan = customer.metadata?.plan
+            if (userId && plan) {
+              upgradePlan(userId, plan)
+              console.log(`[Webhook] Subscription renewed: user=${userId} plan=${plan}`)
+            }
+          } catch (e) {
+            console.error("[Webhook] Customer fetch error:", e)
+          }
+        }
+        break
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = event.data.object
+        // Downgrade to free (with 3-day grace)
+        console.log(`[Webhook] Subscription cancelled: ${sub.id}`)
+        // Grace period: planExpiresAt already set, user will be downgraded when it expires
+        break
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object
+        console.warn(`[Webhook] Payment failed: invoice=${invoice.id} customer=${invoice.customer}`)
+        // Stripe auto-retries, no action needed yet
+        break
+      }
+
+      default:
+        console.log(`[Webhook] Unhandled event: ${event.type}`)
     }
 
-    return NextResponse.json({ ok: true })
-  } catch (e) {
-    console.error('[Webhook] Error:', e)
-    return NextResponse.json({ error: 'Webhook error' }, { status: 500 })
+    return NextResponse.json({ received: true })
+  } catch (err: any) {
+    console.error("[Webhook] Error:", err.message)
+    return NextResponse.json({ error: "Webhook error" }, { status: 500 })
   }
-}
-
-// Dev mode: simulate payment via signed token
-export async function GET(req: NextRequest) {
-  // Block in production
-  if (process.env.YUKASSA_SECRET_KEY) {
-    return NextResponse.json({ error: 'Disabled in production' }, { status: 403 })
-  }
-
-  const url = new URL(req.url)
-  const devToken = url.searchParams.get('dev_token')
-
-  if (!devToken) {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
-  }
-
-  try {
-    // Verify signed dev token
-    const [payloadB64, sig] = devToken.split('.')
-    if (!payloadB64 || !sig) throw new Error('Invalid token format')
-
-    const expectedSig = crypto.createHmac('sha256', 'dev-payment-secret').update(payloadB64).digest('hex')
-
-    // Timing-safe comparison
-    if (sig.length !== expectedSig.length ||
-        !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {
-      throw new Error('Invalid signature')
-    }
-
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString())
-    const { userId, plan, ts } = payload
-
-    // Token expires in 5 minutes
-    if (Date.now() - ts > 5 * 60 * 1000) {
-      return NextResponse.json({ error: 'Token expired' }, { status: 400 })
-    }
-
-    if (userId && plan) {
-      upgradePlan(userId, plan)
-      console.log(`[Payment-Dev] Simulated upgrade: user=${userId} plan=${plan}`)
-      return NextResponse.redirect(new URL('/chat?payment=success', req.url))
-    }
-  } catch (e) {
-    console.error('[Payment-Dev] Invalid token:', e)
-  }
-
-  return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 }

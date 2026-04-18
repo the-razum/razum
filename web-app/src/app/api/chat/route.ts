@@ -69,7 +69,7 @@ function fixGarbled(text: string): string {
       const ip = getClientIP(req)
       const { allowed } = checkAnonLimit(ip)
       if (!allowed) {
-        return json({ error: 'Лимит для гостей исчерпан (10/день). Зарегистрируйтесь для 30/день.', register: true }, 429)
+        return json({ error: 'Лимит для гостей исчерпан (30/день). Зарегистрируйтесь для 30/день.', register: true }, 429)
       }
     }
 
@@ -103,7 +103,7 @@ function fixGarbled(text: string): string {
     }
 
     const stats = getQueueStats()
-    console.log(`[Chat] q="${userQuery.slice(0, 60)}" model=${actualModel} user=${userId || 'anon'} queue=${stats.pending}`)
+    console.log(`[Chat] len=${userQuery.length} model=${actualModel} user=${userId || 'anon'} queue=${stats.pending}`)
 
     let augmentedMessages = [systemMsg, ...sanitizedMessages]
 

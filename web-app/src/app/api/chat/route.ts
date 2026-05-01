@@ -207,7 +207,7 @@ function fixGarbled(text: string): string {
                 safeEnqueue(enc.encode(`: keepalive\n\n`))
               }
             }
-            await new Promise(r => setTimeout(r, 40))
+            await new Promise(r => setTimeout(r, 15))
           }
 
           const fileResult = !minerResult ? getTaskResult(taskId) : null

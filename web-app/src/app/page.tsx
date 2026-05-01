@@ -72,6 +72,7 @@ function NavBar() {
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm text-text2">
           <Link href="/pricing" className="hover:text-text transition">Тарифы</Link>
+          <Link href="/chain" className="hover:text-text transition">Чейн</Link>
           <Link href="/miner" className="hover:text-text transition">Майнерам</Link>
           <a href="https://t.me/razum_miners" target="_blank" rel="noopener noreferrer" className="hover:text-text transition">Telegram</a>
         </div>
@@ -402,6 +403,7 @@ export default function Home() {
                 <div className="space-y-2">
                   <Link href="/chat" className="block text-text2 text-sm hover:text-text transition">AI-чат</Link>
                   <Link href="/pricing" className="block text-text2 text-sm hover:text-text transition">Тарифы</Link>
+                  <Link href="/chain" className="block text-text2 text-sm hover:text-text transition">Чейн (testnet)</Link>
                   <Link href="/miner" className="block text-text2 text-sm hover:text-text transition">Майнерам</Link>
                 </div>
               </div>

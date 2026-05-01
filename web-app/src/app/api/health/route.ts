@@ -46,6 +46,7 @@ export async function GET() {
         openaiApi: true,
         ecdsaSigning: true,
         nodeVerification: true,
+        razumChain: !!process.env.RAZUM_CHAIN_ID,
       },
       env: {
         nodeEnv: process.env.NODE_ENV || 'development',

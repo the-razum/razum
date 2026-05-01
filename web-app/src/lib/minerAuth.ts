@@ -36,7 +36,7 @@ export function verifyMinerSignature(
   if (isNaN(ts)) return { valid: false, reason: 'invalid timestamp' }
 
   const now = Date.now()
-  const MAX_AGE_MS = 5 * 60 * 1000
+  const MAX_AGE_MS = 12 * 60 * 60 * 1000
   if (Math.abs(now - ts) > MAX_AGE_MS) {
     return { valid: false, reason: 'timestamp too old or in future' }
   }

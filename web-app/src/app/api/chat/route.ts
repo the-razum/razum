@@ -207,6 +207,7 @@ function fixGarbled(text: string): string {
                 safeEnqueue(enc.encode(`: keepalive\n\n`))
               }
             }
+            if (s && s.done) break
             await new Promise(r => setTimeout(r, 15))
           }
 

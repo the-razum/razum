@@ -69,7 +69,7 @@ function getDB() {
     // a result within the retry window, requeue it so another miner can try.
     // If even a requeue cannot get picked up (recent = true), mark failed.
     if (!(globalThis as any).__razumSweeper) {
-      const REQUEUE_AFTER_SEC = 15  // task assigned > 90s → requeue as pending
+      const REQUEUE_AFTER_SEC = 90  // task assigned > 90s → requeue as pending
       const FAIL_AFTER_SEC = 240    // task in any active state > 240s → mark failed
       ;(globalThis as any).__razumSweeper = setInterval(() => {
         try {

@@ -316,7 +316,7 @@ async function runTask(task) {
         if (obj.done) { flush() }
       } catch {}
     }
-    if (buf.length > 30 || Date.now() - lastFlush > 30) flush()
+    if (buf.length > 50 || Date.now() - lastFlush > 50) flush()
   }
   flush()
 

@@ -60,6 +60,19 @@ export default function MinerPage() {
         </div>
       </nav>
 
+      {/* ===== Testnet banner ===== */}
+      <div className="bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-transparent border-b border-emerald-400/20">
+        <div className="max-w-6xl mx-auto px-6 py-3 flex flex-wrap gap-4 items-center text-sm">
+          <span className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <strong>razum-testnet-1</strong> live
+          </span>
+          <Link href="/chain" className="text-emerald-300 hover:underline">статус чейна →</Link>
+          <Link href="/faucet" className="text-emerald-300 hover:underline">взять 100 RZM →</Link>
+          <span className="text-text2 ml-auto hidden md:inline">RPC: airazum.com/chain-rpc/</span>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto px-6 py-16">
 
         {/* ===== HERO ===== */}

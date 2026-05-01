@@ -1,0 +1,17 @@
+[Unit]
+Description=Razum Chain Node (razumd)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/inferenced start --home /opt/razum-chain/data --log_level info
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+StandardOutput=append:/var/log/razumd.log
+StandardError=append:/var/log/razumd.err.log
+
+[Install]
+WantedBy=multi-user.target

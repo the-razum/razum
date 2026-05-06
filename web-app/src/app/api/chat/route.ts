@@ -10,7 +10,7 @@ const MAX_MESSAGES = 50
 
 // Map UI model id → real Ollama model name (must match what miners advertise)
 const MODEL_MAP: Record<string, string> = {
-  'qwen3.5-9b': process.env.MODEL_QWEN || 'qwen3.5:9b',
+  'qwen3.5-9b': process.env.MODEL_QWEN || 'qwen2.5:7b',
   'deepseek-r1-7b': process.env.MODEL_DEEPSEEK || 'deepseek-r1:7b',
 }
 

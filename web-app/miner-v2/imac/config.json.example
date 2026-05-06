@@ -1,0 +1,8 @@
+{
+  "coordinator": "https://airazum.com",
+  "ollamaUrl": "http://127.0.0.1:11434",
+  "minerName": "imac-svatoslav",
+  "walletAddress": "0x60769DFDF421d6633c0b0a571936272c93A63Db2",
+  "heartbeatInterval": 30000,
+  "pollInterval": 1000
+}

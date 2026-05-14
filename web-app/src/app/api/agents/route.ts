@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit'
 import { verifyToken } from '@/lib/auth'
 import { createAgent, getPublicAgents, getUserAgents } from '@/lib/db'
+import { AgentCreateSchema, validateBody } from '@/lib/validators'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -24,10 +25,9 @@ export async function POST(req: NextRequest) {
   const token = req.cookies.get('razum_token')?.value
   const userId = token ? verifyToken(token) : null
   if (!userId) return NextResponse.json({ error: 'auth required' }, { status: 401 })
-  const body = await req.json()
-  if (!body.name || !body.systemPrompt) {
-    return NextResponse.json({ error: 'name and systemPrompt required' }, { status: 400 })
-  }
-  const agent = createAgent(userId, body)
+  const raw = await req.json()
+  const v = validateBody(AgentCreateSchema, raw)
+  if (!v.ok) return NextResponse.json({ error: 'Validation: ' + v.error }, { status: 400 })
+  const agent = createAgent(userId, v.data as any)
   return NextResponse.json({ agent })
 }

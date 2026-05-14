@@ -7,6 +7,21 @@ export const revalidate = 5
 export const metadata = {
   title: 'razum-testnet-1 — Block Explorer | Razum AI',
   description: 'Live статус блокчейна Razum AI: блоки, транзакции, валидаторы, supply RZM.',
+  openGraph: {
+    title: 'razum-testnet-1 — Block Explorer | Razum AI',
+    description: 'Live статус блокчейна Razum AI: блоки, валидаторы, supply RZM.',
+    url: 'https://airazum.com/chain',
+    siteName: 'Razum AI',
+    locale: 'ru_RU',
+    type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Razum AI' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'razum-testnet-1 — Block Explorer | Razum AI',
+    description: 'Live статус блокчейна Razum AI: блоки, валидаторы, supply RZM.',
+    images: ['/og-image.png'],
+  },
 }
 
 function formatRZM(n: number) {

@@ -2,7 +2,23 @@ import Link from 'next/link'
 import { getPublicAgents } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Агенты — Razum AI', description: 'Каталог пользовательских AI-агентов на Razum AI.' }
+export const metadata = { title: 'Агенты — Razum AI', description: 'Каталог пользовательских AI-агентов на Razum AI.',
+  openGraph: {
+    title: 'Агенты — Razum AI',
+    description: 'Каталог пользовательских AI-агентов на Razum AI. Создай своего бота.',
+    url: 'https://airazum.com/agents',
+    siteName: 'Razum AI',
+    locale: 'ru_RU',
+    type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Razum AI' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Агенты — Razum AI',
+    description: 'Каталог пользовательских AI-агентов на Razum AI. Создай своего бота.',
+    images: ['/og-image.png'],
+  },
+}
 
 export default async function AgentsPage() {
   const agents = getPublicAgents(60)

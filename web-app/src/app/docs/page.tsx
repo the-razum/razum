@@ -3,6 +3,21 @@ import Link from 'next/link'
 export const metadata = {
   title: 'Документация — Razum AI',
   description: 'Архитектура Razum AI, как стать майнером, OpenAI-совместимый API, endpoints чейна razum-testnet-1, faucet, FAQ.',
+  openGraph: {
+    title: 'Документация — Razum AI',
+    description: 'Технический справочник Razum AI: API, чейн, майнинг.',
+    url: 'https://airazum.com/docs',
+    siteName: 'Razum AI',
+    locale: 'ru_RU',
+    type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Razum AI' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Документация — Razum AI',
+    description: 'Технический справочник Razum AI: API, чейн, майнинг.',
+    images: ['/og-image.png'],
+  },
 }
 
 const code = 'block whitespace-pre overflow-x-auto bg-black/50 border border-white/10 rounded-lg p-4 text-xs font-mono'

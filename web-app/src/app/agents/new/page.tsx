@@ -21,7 +21,7 @@ export default function NewAgent() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  function useTemplate(t: typeof TEMPLATES[0]) {
+  function applyTemplate(t: typeof TEMPLATES[0]) {
     setName(t.label); setAvatar(t.avatar); setSystemPrompt(t.prompt)
   }
 
@@ -57,7 +57,7 @@ export default function NewAgent() {
           <div className='text-sm text-white/60 mb-2'>Шаблоны (опционально):</div>
           <div className='flex flex-wrap gap-2'>
             {TEMPLATES.map(t => (
-              <button key={t.label} onClick={() => useTemplate(t)}
+              <button key={t.label} onClick={() => applyTemplate(t)}
                 className='px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm hover:bg-white/10'>{t.avatar} {t.label}</button>
             ))}
           </div>

@@ -3,6 +3,21 @@ import Link from 'next/link'
 export const metadata = {
   title: 'Roadmap — Razum AI',
   description: 'Дорожная карта развития Razum AI: что сделано, что в работе, что впереди.',
+  openGraph: {
+    title: 'Roadmap — Razum AI',
+    description: 'Дорожная карта Razum AI: что сделано, что в работе, что впереди.',
+    url: 'https://airazum.com/roadmap',
+    siteName: 'Razum AI',
+    locale: 'ru_RU',
+    type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Razum AI' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Roadmap — Razum AI',
+    description: 'Дорожная карта Razum AI: что сделано, что в работе, что впереди.',
+    images: ['/og-image.png'],
+  },
 }
 
 type Status = 'done' | 'in-progress' | 'planned'

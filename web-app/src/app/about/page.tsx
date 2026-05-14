@@ -3,6 +3,21 @@ import Link from 'next/link'
 export const metadata = {
   title: 'О проекте — Razum AI',
   description: 'Кто стоит за Razum AI, миссия, ценности, контакты.',
+  openGraph: {
+    title: 'О проекте — Razum AI',
+    description: 'Открытая российская AI-платформа. Команда, миссия, ценности.',
+    url: 'https://airazum.com/about',
+    siteName: 'Razum AI',
+    locale: 'ru_RU',
+    type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Razum AI' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'О проекте — Razum AI',
+    description: 'Открытая российская AI-платформа. Команда, миссия, ценности.',
+    images: ['/og-image.png'],
+  },
 }
 
 export default function AboutPage() {

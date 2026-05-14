@@ -98,3 +98,56 @@ export const CHAIN_INFO = {
   rpcPublic:  'https://airazum.com/chain-rpc/',
   restPublic: 'https://airazum.com/chain-api/',
 }
+
+export interface BlockSummary {
+  height: number
+  hash: string
+  proposer: string
+  txCount: number
+  time: string
+}
+
+export async function getRecentBlocks(n = 10): Promise<BlockSummary[]> {
+  const status = await getChainStatus()
+  if (!status) return []
+  const out: BlockSummary[] = []
+  const start = Math.max(1, status.height - n + 1)
+  for (let h = status.height; h >= start; h--) {
+    try {
+      const j: any = await fetchJSON(`${RPC}/block?height=${h}`, 3000)
+      const blk = j.result?.block
+      out.push({
+        height: parseInt(blk.header.height, 10),
+        hash: j.result.block_id?.hash || '',
+        proposer: blk.header.proposer_address || '',
+        txCount: (blk.data?.txs || []).length,
+        time: blk.header.time,
+      })
+    } catch {}
+  }
+  return out
+}
+
+export interface ValidatorSummary {
+  operatorAddress: string
+  moniker: string
+  tokens: string
+  commission: string
+  jailed: boolean
+}
+
+export async function getValidators(): Promise<ValidatorSummary[]> {
+  try {
+    const j: any = await fetchJSON(`${REST}/cosmos/staking/v1beta1/validators`)
+    return (j.validators || []).map((v: any) => ({
+      operatorAddress: v.operator_address,
+      moniker: v.description?.moniker || 'unnamed',
+      tokens: v.tokens,
+      commission: v.commission?.commission_rates?.rate || '0',
+      jailed: v.jailed || false,
+    }))
+  } catch (e) {
+    console.error('[chain] getValidators error:', (e as Error).message)
+    return []
+  }
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { registerUser, createEmailToken } from '@/lib/db'
+import { registerUser, createEmailToken, applyReferral, ensureReferralCode } from '@/lib/db'
 import { createToken } from '@/lib/auth'
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit'
 import { sendVerificationEmail } from '@/lib/email'
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Запрос слишком большой' }, { status: 413 })
     }
 
-    const { email, name, password } = JSON.parse(text)
+    const { email, name, password, ref } = JSON.parse(text)
 
     if (!email || !name || !password) {
       return NextResponse.json({ error: 'Заполните все поля' }, { status: 400 })
@@ -65,6 +65,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Send verification email (non-blocking — don't fail registration if email fails)
+    // Apply referral if any
+    if (ref && typeof ref === 'string') {
+      try { applyReferral(user.id, ref.trim()) } catch {}
+    }
+    try { ensureReferralCode(user.id) } catch {}
     const verifyToken = createEmailToken(user.id, 'verify')
     sendVerificationEmail(user.email, user.name, verifyToken).catch(e => {
       console.error('[Auth] Failed to send verification email:', e)

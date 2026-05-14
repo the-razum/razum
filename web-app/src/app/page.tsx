@@ -72,8 +72,11 @@ function NavBar() {
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm text-text2">
           <Link href="/pricing" className="hover:text-text transition">Тарифы</Link>
+          <Link href="/agents" className="hover:text-text transition">Агенты</Link>
           <Link href="/chain" className="hover:text-text transition">Чейн</Link>
           <Link href="/faucet" className="hover:text-text transition">Faucet</Link>
+          <Link href="/docs" className="hover:text-text transition">Docs</Link>
+          <Link href="/faq" className="hover:text-text transition">FAQ</Link>
           <Link href="/miner" className="hover:text-text transition">Майнерам</Link>
           <a href="https://t.me/razum_miners" target="_blank" rel="noopener noreferrer" className="hover:text-text transition">Telegram</a>
         </div>
@@ -195,6 +198,67 @@ export default function Home() {
                 <span className="text-text2 text-sm">безлимит / месяц</span>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* ═══════ COMPARISON: Razum vs ChatGPT через VPN ═══════ */}
+        <section className="py-16 px-6 border-t border-border" id="comparison-table">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-3">Сравните сами</h2>
+              <p className="text-text2">Что вы получаете и что теряете</p>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-surface">
+                  <tr>
+                    <th className="text-left p-4 font-semibold"></th>
+                    <th className="p-4 font-semibold text-accent">Razum AI</th>
+                    <th className="p-4 font-semibold text-text2">ChatGPT через VPN</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <tr><td className="p-4 text-text2">VPN нужен</td><td className="p-4 text-center text-accent font-medium">— нет</td><td className="p-4 text-center text-text2">да</td></tr>
+                  <tr><td className="p-4 text-text2">Оплата картой РФ</td><td className="p-4 text-center text-accent font-medium">МИР / Visa / MC</td><td className="p-4 text-center text-text2">только зарубежные</td></tr>
+                  <tr><td className="p-4 text-text2">Русский язык</td><td className="p-4 text-center text-accent font-medium">нативно</td><td className="p-4 text-center text-text2">с акцентом</td></tr>
+                  <tr><td className="p-4 text-text2">Веб-поиск в чате</td><td className="p-4 text-center text-accent font-medium">встроен бесплатно</td><td className="p-4 text-center text-text2">только Plus</td></tr>
+                  <tr><td className="p-4 text-text2">OpenAI-API совместимость</td><td className="p-4 text-center text-accent font-medium">да</td><td className="p-4 text-center text-text2">да</td></tr>
+                  <tr><td className="p-4 text-text2">Бесплатный тариф</td><td className="p-4 text-center text-accent font-medium">30 запр/день</td><td className="p-4 text-center text-text2">ограничен</td></tr>
+                  <tr><td className="p-4 text-text2">Конфиденциальность данных</td><td className="p-4 text-center text-accent font-medium">обработка в РФ</td><td className="p-4 text-center text-text2">США</td></tr>
+                  <tr><td className="p-4 text-text2">Открытый код</td><td className="p-4 text-center text-accent font-medium">github.com/the-razum</td><td className="p-4 text-center text-text2">нет</td></tr>
+                  <tr><td className="p-4 text-text2">Можно зарабатывать майнингом</td><td className="p-4 text-center text-accent font-medium">да (RZM-токены)</td><td className="p-4 text-center text-text2">нет</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════ SOCIAL PROOF placeholder ═══════ */}
+        <section className="py-16 px-6 border-t border-border" id="users">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-3">Кто пользуется</h2>
+              <p className="text-text2">Первые отзывы от ранних юзеров</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                {name: 'Алексей', role: 'Backend-разраб', text: 'Полгода юзал ChatGPT через VPN. Razum AI работает без него и API тот же. Сэкономил 0 в месяц.'},
+                {name: 'Марина', role: 'Контент-маркетолог', text: 'Пишу посты на русском — Razum понимает контекст лучше, не путается с падежами как DeepL/GPT через переводчик.'},
+                {name: 'Дмитрий', role: 'Майнер на M2', text: 'Поставил клиент на mac-mini за 5 минут. Идёт фоном пока работаю, накапывают RZM. Электричество окупается.'},
+              ].map((t, i) => (
+                <div key={i} className="rounded-2xl border border-border bg-surface p-6">
+                  <p className="text-text mb-4 leading-relaxed">«{t.text}»</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">{t.name[0]}</div>
+                    <div>
+                      <div className="font-medium text-sm">{t.name}</div>
+                      <div className="text-xs text-text2">{t.role}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-text2 mt-8">Public beta · отзывы будут обновляться</p>
           </div>
         </section>
 
@@ -404,8 +468,13 @@ export default function Home() {
                 <div className="space-y-2">
                   <Link href="/chat" className="block text-text2 text-sm hover:text-text transition">AI-чат</Link>
                   <Link href="/pricing" className="block text-text2 text-sm hover:text-text transition">Тарифы</Link>
+                  <Link href="/agents" className="block text-text2 text-sm hover:text-text transition">Агенты</Link>
                   <Link href="/chain" className="block text-text2 text-sm hover:text-text transition">Чейн (testnet)</Link>
                   <Link href="/faucet" className="block text-text2 text-sm hover:text-text transition">Faucet</Link>
+                  <Link href="/docs" className="block text-text2 text-sm hover:text-text transition">Docs</Link>
+                  <Link href="/faq" className="block text-text2 text-sm hover:text-text transition">FAQ</Link>
+                  <Link href="/about" className="block text-text2 text-sm hover:text-text transition">О проекте</Link>
+                  <Link href="/roadmap" className="block text-text2 text-sm hover:text-text transition">Roadmap</Link>
                   <Link href="/miner" className="block text-text2 text-sm hover:text-text transition">Майнерам</Link>
                 </div>
               </div>

@@ -31,7 +31,7 @@ async function braveSearch(query: string): Promise<string | null> {
     const data = await res.json()
     const results = (data.web?.results || [])
       .slice(0, 5)
-      .map((r: any, i: number) => `${i + 1}. ${sanitize(r.title)}: ${sanitize(r.description)}`)
+      .map((r: any, i: number) => `${i + 1}. [${sanitize(r.title)}](${r.url || ''}): ${sanitize(r.description).slice(0, 280)}`)
 
     return results.length > 0 ? results.join('\n\n') : null
   } catch (e) {
@@ -56,7 +56,7 @@ async function searxngSearch(query: string): Promise<string | null> {
     const data = await res.json()
     const results = (data.results || [])
       .slice(0, 5)
-      .map((r: any, i: number) => `${i + 1}. ${sanitize(r.title)}: ${sanitize(r.content || '')}`)
+      .map((r: any, i: number) => `${i + 1}. [${sanitize(r.title)}](${r.url || ''}): ${sanitize(r.content || '').slice(0, 280)}`)
 
     return results.length > 0 ? results.join('\n\n') : null
   } catch (e) {

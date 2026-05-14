@@ -34,3 +34,44 @@ body {
   color: #00e59b;
   font-size: 0.875rem;
 }
+
+/* === Light theme override (toggle via [data-theme=light] on <html>) === */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --fg: #0d1017;
+}
+:root[data-theme="light"] body {
+  background: #ffffff;
+  color: #0d1017;
+}
+:root[data-theme="light"] .bg-bg,
+:root[data-theme="light"] .bg-black {
+  background-color: #ffffff !important;
+}
+:root[data-theme="light"] .text-white,
+:root[data-theme="light"] .text-text {
+  color: #0d1017 !important;
+}
+:root[data-theme="light"] .text-text2,
+:root[data-theme="light"] .text-white\/60,
+:root[data-theme="light"] .text-white\/70 {
+  color: #555 !important;
+}
+:root[data-theme="light"] .border-border,
+:root[data-theme="light"] .border-white\/10,
+:root[data-theme="light"] .border-white\/15,
+:root[data-theme="light"] .border-white\/20 {
+  border-color: rgba(0,0,0,0.1) !important;
+}
+:root[data-theme="light"] .bg-surface,
+:root[data-theme="light"] .bg-white\/5,
+:root[data-theme="light"] .bg-white\/10 {
+  background-color: #f7f7f8 !important;
+}
+:root[data-theme="light"] .bg-surface2 {
+  background-color: #e5e7eb !important;
+}
+:root[data-theme="light"] .bg-black\/50 {
+  background-color: #f7f7f8 !important;
+  color: #0d1017;
+}

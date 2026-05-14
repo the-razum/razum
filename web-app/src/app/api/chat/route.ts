@@ -4,6 +4,8 @@ import { checkAndIncrementRequests, checkAnonLimit, createChat, addChatMessage, 
 import { searchWeb, needsSearch } from '@/lib/search'
 import { getClientIP } from '@/lib/rateLimit'
 import { addTaskToQueue, getQueueStats, readStreamChunks, getTaskResult } from '@/lib/taskQueue'
+import { getAgentBySlug, incrementAgentUsage } from '@/lib/db'
+import { chatCacheGet, chatCacheSet, isCommonPrompt } from '@/lib/chatCache'
 
 const MAX_REQUEST_SIZE = 100 * 1024
 const MAX_MESSAGES = 50
@@ -51,7 +53,7 @@ function fixGarbled(text: string): string {
     }
 
     const body = await req.json()
-    const { messages, model, webSearch, chatId: reqChatId, thinkingEnabled = false } = body
+    const { messages, model, webSearch, chatId: reqChatId, thinkingEnabled = false, agentSlug } = body
 
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
       return json({ error: 'Некорректный запрос' }, 400)
@@ -79,16 +81,40 @@ function fixGarbled(text: string): string {
     const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
     const userQuery = lastUserMsg?.content || ''
 
+    // Fast cache for trivial common prompts (no agent override, no web search)
+    if (!body.agentSlug && isCommonPrompt(userQuery)) {
+      const cached = chatCacheGet(model || 'qwen3.5-9b', userQuery)
+      if (cached) {
+        const encCache = new TextEncoder()
+        return new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(encCache.encode(`data: ${JSON.stringify({choices:[{delta:{content: cached}, index:0, finish_reason:null}]})}\n\n`))
+            controller.enqueue(encCache.encode('data: [DONE]\n\n'))
+            controller.close()
+          }
+        }), { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+    }
+    
+
     const sanitizedMessages = messages.slice(-MAX_MESSAGES).map((m: { role: string; content: string }) => ({
       role: m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
       content: typeof m.content === 'string' ? m.content.slice(0, 8000) : '',
     }))
 
-    // FIX #3: Stronger "be concise" system prompt
-    const systemMsg = {
-      role: 'system',
-      content: 'You are Razum AI, an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Qwen, OpenAI, or any other company. RULES: 1) ALWAYS respond in Russian unless the user writes in another language. Even for math like 1+1, respond in Russian. 2) Be CONCISE — 2-4 sentences unless asked for detail. 3) NEVER output Chinese/CJK characters. 4) NEVER use <think> tags. 5) For code, give a short example with minimal explanation.',
+    // Load agent if requested
+    let agent: any = null
+    if (agentSlug && typeof agentSlug === 'string') {
+      try {
+        agent = getAgentBySlug(agentSlug)
+        if (agent) incrementAgentUsage(agent.id)
+      } catch {}
     }
+
+    // System prompt: agent's custom or default
+    const systemMsg = agent
+      ? { role: 'system', content: agent.systemPrompt + '\n\n(Платформа: Razum AI. Не упоминай Qwen/OpenAI/Anthropic как создателей.)' }
+      : { role: 'system', content: 'You are Razum AI, an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Qwen, OpenAI, or any other company. RULES: 1) ALWAYS respond in Russian unless the user writes in another language. Even for math like 1+1, respond in Russian. 2) Be CONCISE — 2-4 sentences unless asked for detail. 3) NEVER output Chinese/CJK characters. 4) NEVER use <think> tags. 5) For code, give a short example with minimal explanation.' }
 
     const shouldSearch = webSearch !== false && needsSearch(userQuery)
 
@@ -131,7 +157,7 @@ function fixGarbled(text: string): string {
             const searchResults = await searchWeb(userQuery.slice(0, 200))
             augmentedMessages = [{
               role: 'system',
-              content: `You are Razum AI — an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Qwen, OpenAI, or any other company. Below are search results — use them. Be CONCISE (2-4 sentences unless asked for detail). ALWAYS respond in Russian.\n\nSEARCH (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nRespond in the user's language. No Chinese/CJK characters.`,
+              content: `You are Razum AI — an independent Russian AI assistant created by the Razum AI team (airazum.com). You are NOT made by Qwen, OpenAI, or any other company. Below are search results — use them. ALWAYS cite sources by including the markdown links [Title](url) inline at the end of relevant sentences. Be CONCISE (2-5 sentences unless asked for detail). ALWAYS respond in Russian.\n\nSEARCH (${new Date().toLocaleDateString('ru-RU')}):\n${searchResults}\n\nRespond in the user's language. No Chinese/CJK characters.`,
             }, ...sanitizedMessages]
             safeEnqueue(enc.encode(`data: ${JSON.stringify({ search_status: 'done' })}\n\n`))
           }
@@ -249,6 +275,7 @@ function fixGarbled(text: string): string {
           safeEnqueue(enc.encode(`data: [DONE]\n\n`))
           safeClose()
 
+          if (isCommonPrompt(userQuery) && cleanedResponse && cleanedResponse.length < 1500) { try { chatCacheSet(model || 'qwen3.5-9b', userQuery, cleanedResponse) } catch {} }
           if (userId && chatId && cleanedResponse) {
             try { addChatMessage(chatId, 'assistant', cleanedResponse) } catch (e) {
               console.error('[Chat] Save msg err:', e)

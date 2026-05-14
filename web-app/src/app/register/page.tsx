@@ -6,6 +6,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -13,13 +14,17 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    if (!agreed) { setError('Подтвердите возраст и согласие на обработку ПД'); return }
     setLoading(true)
 
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, password }),
+        body: JSON.stringify({
+          email, name, password,
+          ref: (document.cookie.match(/razum_ref=([^;]+)/) || [])[1] || ''
+        }),
       })
 
       const data = await res.json()
@@ -143,9 +148,15 @@ export default function RegisterPage() {
             </div>
           )}
 
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 16, fontSize: 13, color: '#8294a8', cursor: 'pointer' }}>
+            <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 3, flexShrink: 0 }} />
+            <span>
+              Мне 18+, я согласен с <a href="/terms" target="_blank" style={{ color: '#00e59b' }}>условиями</a> и обработкой моих персональных данных согласно <a href="/privacy" target="_blank" style={{ color: '#00e59b' }}>политике конфиденциальности</a>.
+            </span>
+          </label>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !agreed}
             style={{
               width: '100%', padding: '14px',
               background: loading ? '#065f46' : '#00e59b',

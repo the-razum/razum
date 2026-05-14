@@ -1,6 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import BetaBanner from '@/components/BetaBanner'
+import ThemeToggle from '@/components/ThemeToggle'
+import Analytics from '@/components/Analytics'
+import CookieBanner from '@/components/CookieBanner'
+import Footer from '@/components/Footer'
 
 const inter = Inter({
   subsets: ['latin', 'cyrillic'],
@@ -88,7 +93,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
+        <Analytics />
+        <CookieBanner />
+        <BetaBanner />
+        <div style={{position:'fixed',top:8,right:8,zIndex:9999}}><ThemeToggle /></div>
         {children}
+        <Footer />
         <script
           dangerouslySetInnerHTML={{
             __html: `

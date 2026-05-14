@@ -263,6 +263,32 @@ export default function ChatPage() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [webSearch, setWebSearch] = useState(true)
+  const agentSlug = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('agent') || '') : ''
+  const [chatFilter, setChatFilter] = useState('')
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadStatus, setUploadStatus] = useState<string>('')
+
+  async function handleFile(f: File) {
+    if (!f) return
+    setUploadStatus('Загружаю ' + f.name + '...')
+    try {
+      const fd = new FormData()
+      fd.append('file', f)
+      const r = await fetch('/api/chat/upload', { method: 'POST', body: fd })
+      const j = await r.json()
+      if (!r.ok) { setUploadStatus('Ошибка: ' + (j.error || 'failed')); return }
+      const t = j.content as string
+      setInput((prev: string) => (prev ? prev + '\n\n' : '') + 'Документ "' + j.filename + '":\n' + t)
+      setUploadStatus('✓ ' + j.filename + ' (' + j.textLength + ' симв)' + (j.truncated ? ' усечён' : ''))
+      setTimeout(() => setUploadStatus(''), 4000)
+    } catch (e: any) {
+      setUploadStatus('Ошибка: ' + String(e?.message || e))
+    }
+  }
+  function exportChat(format: 'md' | 'txt' = 'md') {
+    if (!currentChatId) return
+    window.location.href = '/api/chats/export?id=' + currentChatId + '&format=' + format
+  }
   const [searchUsed, setSearchUsed] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [user, setUser] = useState<UserInfo>(null)
@@ -375,8 +401,9 @@ export default function ChatPage() {
         body: JSON.stringify({
           messages: newMessages,
           model: selectedModel,
-          webSearch,
+          webSearch: agentSlug ? false : webSearch,
           chatId: currentChatId,
+          agentSlug,
         }),
       })
 
@@ -552,6 +579,16 @@ export default function ChatPage() {
           </button>
         </div>
 
+        {/* Chat history search */}
+        <div className="px-3 pb-2">
+          <input
+            value={chatFilter}
+            onChange={e => setChatFilter(e.target.value)}
+            placeholder="Поиск по чатам..."
+            className="w-full bg-surface/50 border border-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-accent text-text"
+          />
+        </div>
+
         {/* Chat history */}
         <div className="flex-1 overflow-y-auto px-3 space-y-1">
           {chats.length === 0 && messages.length > 0 && (
@@ -559,7 +596,7 @@ export default function ChatPage() {
               {messages[0].content.slice(0, 40)}...
             </div>
           )}
-          {chats.map(chat => (
+          {chats.filter(c => !chatFilter || (c.title || "").toLowerCase().includes(chatFilter.toLowerCase())).map(chat => (
             <div
               key={chat.id}
               className={`group flex items-center gap-1 px-2 py-2 rounded-lg text-sm cursor-pointer transition ${
@@ -745,6 +782,39 @@ export default function ChatPage() {
         <div className="border-t border-border p-4">
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative">
             <div className="flex items-center gap-2 mb-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.md,.txt,.csv,.json,.log"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Прикрепить файл (PDF, DOCX, MD, TXT, до 10 МБ)"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-surface border border-border text-text2 hover:bg-surface2"
+              >
+                📎 Файл
+              </button>
+              {currentChatId && (
+                <button
+                  type="button"
+                  onClick={() => exportChat('md')}
+                  title="Скачать чат как Markdown"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-surface border border-border text-text2 hover:bg-surface2"
+                >
+                  ⬇ MD
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => alert('Голосовой ввод появится в ближайшем релизе')}
+                title="Голосовой ввод (скоро)"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-surface border border-border text-text2 hover:bg-surface2 opacity-70"
+              >
+                🎙
+              </button>
               <button
                 type="button"
                 onClick={() => setWebSearch(!webSearch)}
@@ -759,6 +829,7 @@ export default function ChatPage() {
                 </svg>
                 Поиск в интернете {webSearch ? 'вкл' : 'выкл'}
               </button>
+              {uploadStatus && <span className="text-xs text-text2">{uploadStatus}</span>}
               {searchUsed && (
                 <span className="text-xs text-accent/70">Использован поиск</span>
               )}

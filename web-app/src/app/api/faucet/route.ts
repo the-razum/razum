@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       explorerHint: `https://airazum.com/chain-rpc/tx?hash=0x${txhash}`,
     })
   } catch (e: any) {
-    return NextResponse.json({ error: 'exec-failed', message: String(e?.stderr || e?.message || e).slice(0, 500) }, { status: 500 })
+    return NextResponse.json({ error: 'exec-failed', message: process.env.NODE_ENV === 'production' ? undefined : String(e?.stderr || e?.message || e).slice(0, 500) }, { status: 500 })
   }
 }
 

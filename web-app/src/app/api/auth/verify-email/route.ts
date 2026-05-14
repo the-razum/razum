@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit'
 import { verifyEmailToken, setEmailVerified, getUserById } from '@/lib/db'
 
 export async function POST(req: NextRequest) {
   try {
+    const _ip = getClientIP(req)
+    const _rl = checkRateLimit({ store: 'verify-email', key: _ip, maxAttempts: 30, windowMs: 3600000 })
+    if (!_rl.allowed) return NextResponse.json({ error: 'Слишком много запросов. Подождите.' }, { status: 429, headers: { 'Retry-After': String(Math.ceil(_rl.retryAfterMs/1000)) } })
     const { token } = await req.json()
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ error: 'Токен не указан' }, { status: 400 })

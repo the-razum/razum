@@ -143,7 +143,35 @@ function getDB() {
     try {
       _db.exec(`ALTER TABLE miners ADD COLUMN publicKey TEXT DEFAULT ''`)
     } catch {}
+
+    // Migrate: referral program
+    try { _db.exec(`ALTER TABLE users ADD COLUMN referralCode TEXT DEFAULT ''`) } catch {}
+    try { _db.exec(`ALTER TABLE users ADD COLUMN invitedBy TEXT DEFAULT ''`) } catch {}
+    try { _db.exec(`ALTER TABLE users ADD COLUMN bonusDailyLimit INTEGER DEFAULT 0`) } catch {}
+    try { _db.exec(`CREATE INDEX IF NOT EXISTS idx_users_referralCode ON users(referralCode)`) } catch {}
     _db.exec(`CREATE INDEX IF NOT EXISTS idx_users_apiKey ON users(apiKey)`)
+
+    // Create agents table (custom user-built agents)
+    _db.exec(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id TEXT PRIMARY KEY,
+        ownerId TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        avatar TEXT DEFAULT '🤖',
+        description TEXT DEFAULT '',
+        systemPrompt TEXT NOT NULL,
+        welcomeMessage TEXT DEFAULT '',
+        model TEXT DEFAULT 'qwen3.5-9b',
+        temperature REAL DEFAULT 0.7,
+        isPublic INTEGER DEFAULT 1,
+        usageCount INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `)
+    _db.exec(`CREATE INDEX IF NOT EXISTS idx_agents_owner ON agents(ownerId)`)
+    _db.exec(`CREATE INDEX IF NOT EXISTS idx_agents_public ON agents(isPublic, usageCount DESC)`)
 
     // Create verifications table for node testing
     _db.exec(`
@@ -393,14 +421,16 @@ export function checkAndIncrementRequests(userId: string): { allowed: boolean; r
 
   const today = new Date().toISOString().split('T')[0]
   const plan = PLANS[activePlan as keyof typeof PLANS] || PLANS.free
+  const bonus = (user as any).bonusDailyLimit || 0
+  const effectiveLimit = plan.requestsPerDay + bonus
 
   let requestsToday = user.requestsToday
   if (user.lastRequestDate !== today) {
     requestsToday = 0
   }
 
-  if (requestsToday >= plan.requestsPerDay) {
-    return { allowed: false, remaining: 0, limit: plan.requestsPerDay, plan: activePlan }
+  if (requestsToday >= effectiveLimit) {
+    return { allowed: false, remaining: 0, limit: effectiveLimit, plan: activePlan }
   }
 
   requestsToday++
@@ -408,8 +438,8 @@ export function checkAndIncrementRequests(userId: string): { allowed: boolean; r
 
   return {
     allowed: true,
-    remaining: plan.requestsPerDay - requestsToday,
-    limit: plan.requestsPerDay,
+    remaining: effectiveLimit - requestsToday,
+    limit: effectiveLimit,
     plan: activePlan,
   }
 }
@@ -874,4 +904,164 @@ export function getMinerPublicKey(minerId: string): string | null {
   const db = getDB()
   const row = db.prepare('SELECT publicKey FROM miners WHERE id = ?').get(minerId) as any
   return row?.publicKey || null
+}
+
+// === REFERRAL ===
+import { randomBytes as _rrb } from 'crypto'
+export function generateReferralCode(): string {
+  return _rrb(4).toString('hex')  // 8 char hex code
+}
+
+export function ensureReferralCode(userId: string): string {
+  const db = getDB()
+  const row = db.prepare('SELECT referralCode FROM users WHERE id = ?').get(userId) as any
+  if (row?.referralCode) return row.referralCode
+  let code: string
+  // ensure unique
+  for (let i = 0; i < 5; i++) {
+    code = generateReferralCode()
+    const conflict = db.prepare('SELECT 1 FROM users WHERE referralCode = ?').get(code)
+    if (!conflict) {
+      db.prepare('UPDATE users SET referralCode = ? WHERE id = ?').run(code, userId)
+      return code
+    }
+  }
+  throw new Error('Failed to generate unique referral code')
+}
+
+export function findUserByReferralCode(code: string): any {
+  const db = getDB()
+  return db.prepare('SELECT id, name, email FROM users WHERE referralCode = ?').get(code)
+}
+
+export function getReferralStats(userId: string): { code: string; invited: number; totalBonus: number } {
+  const db = getDB()
+  const u = db.prepare('SELECT referralCode, bonusDailyLimit FROM users WHERE id = ?').get(userId) as any
+  const invited = (db.prepare('SELECT COUNT(*) as c FROM users WHERE invitedBy = ?').get(userId) as any).c
+  return { code: u?.referralCode || '', invited, totalBonus: u?.bonusDailyLimit || 0 }
+}
+
+export function applyReferral(newUserId: string, inviterCode: string): boolean {
+  const db = getDB()
+  const inviter = findUserByReferralCode(inviterCode)
+  if (!inviter || inviter.id === newUserId) return false
+  // Set inviter on new user
+  db.prepare('UPDATE users SET invitedBy = ? WHERE id = ? AND (invitedBy IS NULL OR invitedBy = "")').run(inviter.id, newUserId)
+  // Give inviter +30 daily bonus, capped at +300
+  db.prepare('UPDATE users SET bonusDailyLimit = MIN(COALESCE(bonusDailyLimit,0) + 30, 300) WHERE id = ?').run(inviter.id)
+  return true
+}
+
+// === AGENTS ===
+import { randomBytes as _rrb2 } from 'crypto'
+
+export interface Agent {
+  id: string
+  ownerId: string
+  slug: string
+  name: string
+  avatar: string
+  description: string
+  systemPrompt: string
+  welcomeMessage: string
+  model: string
+  temperature: number
+  isPublic: number
+  usageCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+function slugify(name: string): string {
+  // Simple transliteration + slug
+  const map: Record<string,string> = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'i',
+    'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+    'х':'h','ц':'c','ч':'ch','ш':'sh','щ':'sh','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+  }
+  return name.toLowerCase().split('').map(c => map[c] ?? c).join('')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'agent'
+}
+
+export function createAgent(ownerId: string, data: Partial<Agent>): Agent {
+  const db = getDB()
+  const id = _rrb2(8).toString('hex')
+  const baseSlug = data.slug ? data.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 40) : slugify(data.name || 'agent')
+  // ensure unique slug
+  let slug = baseSlug
+  let suffix = 0
+  while (db.prepare('SELECT 1 FROM agents WHERE slug = ?').get(slug)) {
+    suffix++
+    slug = baseSlug + '-' + suffix
+  }
+  const now = new Date().toISOString()
+  const agent: Agent = {
+    id,
+    ownerId,
+    slug,
+    name: (data.name || 'My Agent').slice(0, 80),
+    avatar: (data.avatar || '🤖').slice(0, 10),
+    description: (data.description || '').slice(0, 280),
+    systemPrompt: (data.systemPrompt || '').slice(0, 4000),
+    welcomeMessage: (data.welcomeMessage || '').slice(0, 500),
+    model: data.model || 'qwen3.5-9b',
+    temperature: typeof data.temperature === 'number' ? Math.max(0, Math.min(1.5, data.temperature)) : 0.7,
+    isPublic: data.isPublic ? 1 : 0,
+    usageCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  }
+  db.prepare(`INSERT INTO agents (id, ownerId, slug, name, avatar, description, systemPrompt, welcomeMessage, model, temperature, isPublic, usageCount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      agent.id, agent.ownerId, agent.slug, agent.name, agent.avatar, agent.description,
+      agent.systemPrompt, agent.welcomeMessage, agent.model, agent.temperature,
+      agent.isPublic, agent.usageCount, agent.createdAt, agent.updatedAt)
+  return agent
+}
+
+export function getAgentBySlug(slug: string): Agent | null {
+  const db = getDB()
+  return (db.prepare('SELECT * FROM agents WHERE slug = ?').get(slug) as Agent) || null
+}
+
+export function getAgentById(id: string): Agent | null {
+  const db = getDB()
+  return (db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent) || null
+}
+
+export function getUserAgents(ownerId: string): Agent[] {
+  const db = getDB()
+  return db.prepare('SELECT * FROM agents WHERE ownerId = ? ORDER BY updatedAt DESC').all(ownerId) as Agent[]
+}
+
+export function getPublicAgents(limit = 50): Agent[] {
+  const db = getDB()
+  return db.prepare('SELECT * FROM agents WHERE isPublic = 1 ORDER BY usageCount DESC, createdAt DESC LIMIT ?').all(limit) as Agent[]
+}
+
+export function incrementAgentUsage(id: string): void {
+  const db = getDB()
+  db.prepare('UPDATE agents SET usageCount = usageCount + 1 WHERE id = ?').run(id)
+}
+
+export function updateAgent(id: string, ownerId: string, data: Partial<Agent>): boolean {
+  const db = getDB()
+  const allowed: (keyof Agent)[] = ['name','avatar','description','systemPrompt','welcomeMessage','model','temperature','isPublic']
+  const updates: string[] = []
+  const values: any[] = []
+  for (const k of allowed) {
+    if (k in data) {
+      updates.push(`${k} = ?`)
+      values.push((data as any)[k])
+    }
+  }
+  if (!updates.length) return false
+  updates.push('updatedAt = ?')
+  values.push(new Date().toISOString(), id, ownerId)
+  const r = db.prepare(`UPDATE agents SET ${updates.join(', ')} WHERE id = ? AND ownerId = ?`).run(...values)
+  return r.changes > 0
+}
+
+export function deleteAgent(id: string, ownerId: string): boolean {
+  const db = getDB()
+  return db.prepare('DELETE FROM agents WHERE id = ? AND ownerId = ?').run(id, ownerId).changes > 0
 }

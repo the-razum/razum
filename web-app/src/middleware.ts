@@ -97,9 +97,29 @@ export function middleware(req: NextRequest) {
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
   response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
   response.headers.set("Access-Control-Max-Age", "86400")
+  // === Comprehensive Security Headers ===
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+  response.headers.set("X-XSS-Protection", "1; mode=block")
+  response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(self)")
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin")
+  // CSP — strict but functional. 'unsafe-inline' for styles (Tailwind) and scripts (Next), 'self' for everything else
+  response.headers.set("Content-Security-Policy", [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://mc.yandex.ru",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://airazum.com https://mc.yandex.ru wss:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+  ].join('; '))
 
   // Handle preflight
   if (req.method === "OPTIONS") {

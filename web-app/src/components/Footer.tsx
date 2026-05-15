@@ -28,14 +28,14 @@ export default function Footer() {
           <div>
             <div style={{ color: '#fff', marginBottom: 8 }}>Чейн</div>
             <Link href='/chain' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>Explorer</Link>
-            <Link href='/faucet' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>Faucet</Link>
+            <Link href='/раздача RZM' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>Раздача RZM</Link>
             <Link href='/docs' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>API</Link>
             <a href='https://github.com/the-razum' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>GitHub</a>
           </div>
           <div>
             <div style={{ color: '#fff', marginBottom: 8 }}>Компания</div>
             <Link href='/about' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>О проекте</Link>
-            <Link href='/roadmap' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>Roadmap</Link>
+            <Link href='/roadmap' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>Планы развития</Link>
             <Link href='/faq' style={{ display: 'block', padding: '3px 0', color: 'inherit' }}>FAQ</Link>
           </div>
           <div>
@@ -46,7 +46,7 @@ export default function Footer() {
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <span>© 2026 Razum AI · airazum.com</span>
-          <span style={{ fontSize: 12, opacity: 0.6 }}>Public Beta · RZM testnet не имеет рыночной стоимости</span>
+          <span style={{ fontSize: 12, opacity: 0.6 }}>Открытое тестирование · RZM testnet не имеет рыночной стоимости</span>
         </div>
       </div>
     </footer>

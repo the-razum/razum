@@ -90,7 +90,7 @@ export default function FAQPage() {
           <Link href='/' className='font-bold text-xl'>Razum<span className='text-emerald-400'>AI</span></Link>
           <nav className='flex gap-6 text-sm text-white/70'>
             <Link href='/chat' className='hover:text-white'>Чат</Link>
-            <Link href='/docs' className='hover:text-white'>Docs</Link>
+            <Link href='/docs' className='hover:text-white'>Документация</Link>
             <Link href='/faq' className='text-white'>FAQ</Link>
           </nav>
         </div>

@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 5
 
 export const metadata = {
-  title: 'razum-testnet-1 — Block Explorer | Razum AI',
+  title: 'razum-testnet-1 — Обозреватель блоков | Razum AI',
   description: 'Live статус блокчейна Razum AI: блоки, транзакции, валидаторы, supply RZM.',
   openGraph: {
-    title: 'razum-testnet-1 — Block Explorer | Razum AI',
+    title: 'razum-testnet-1 — Обозреватель блоков | Razum AI',
     description: 'Live статус блокчейна Razum AI: блоки, валидаторы, supply RZM.',
     url: 'https://airazum.com/chain',
     siteName: 'Razum AI',
@@ -18,7 +18,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'razum-testnet-1 — Block Explorer | Razum AI',
+    title: 'razum-testnet-1 — Обозреватель блоков | Razum AI',
     description: 'Live статус блокчейна Razum AI: блоки, валидаторы, supply RZM.',
     images: ['/og-image.png'],
   },
@@ -48,7 +48,7 @@ export default async function ChainPage() {
             <Link href='/agents' className='hover:text-white'>Агенты</Link>
             <Link href='/miner' className='hover:text-white'>Майнинг</Link>
             <Link href='/chain' className='text-white'>Чейн</Link>
-            <Link href='/docs' className='hover:text-white'>Docs</Link>
+            <Link href='/docs' className='hover:text-white'>Документация</Link>
           </nav>
         </div>
       </header>
@@ -59,7 +59,7 @@ export default async function ChainPage() {
           <span className='text-sm uppercase tracking-wider text-white/60'>{live ? 'live' : 'offline'}</span>
         </div>
         <h1 className='text-4xl md:text-5xl font-bold tracking-tight'>
-          {CHAIN_INFO.chainId} <span className='text-white/40 text-2xl font-normal'>· block explorer</span>
+          {CHAIN_INFO.chainId} <span className='text-white/40 text-2xl font-normal'>· обозреватель блоков</span>
         </h1>
         <p className='text-white/60 mt-3 max-w-2xl'>
           Публичный testnet блокчейна Razum AI. Cosmos SDK + CometBFT. ~5s block time.

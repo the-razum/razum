@@ -11,7 +11,7 @@ export default function FaucetPage() {
   async function claim() {
     setBusy(true); setResult(null); setError(null)
     try {
-      const r = await fetch('/api/faucet', {
+      const r = await fetch('/api/раздача RZM', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: addr.trim() }),
@@ -38,14 +38,14 @@ export default function FaucetPage() {
             <Link href='/chat' className='hover:text-white'>Чат</Link>
             <Link href='/miner' className='hover:text-white'>Майнинг</Link>
             <Link href='/chain' className='hover:text-white'>Чейн</Link>
-            <Link href='/faucet' className='text-white'>Faucet</Link>
+            <Link href='/раздача RZM' className='text-white'>Раздача RZM</Link>
           </nav>
         </div>
       </header>
 
       <section className='max-w-2xl mx-auto px-6 py-14'>
         <div className='inline-flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-300 bg-emerald-300/10 px-2 py-1 rounded'>
-          razum-testnet-1 · live faucet
+          razum-testnet-1 · live раздача RZM
         </div>
         <h1 className='text-4xl md:text-5xl font-bold mt-4'>Получи 100 RZM</h1>
         <p className='text-white/60 mt-3'>

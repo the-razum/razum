@@ -1,10 +1,10 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Roadmap — Razum AI',
+  title: 'Планы развития — Razum AI',
   description: 'Дорожная карта развития Razum AI: что сделано, что в работе, что впереди.',
   openGraph: {
-    title: 'Roadmap — Razum AI',
+    title: 'Планы развития — Razum AI',
     description: 'Дорожная карта Razum AI: что сделано, что в работе, что впереди.',
     url: 'https://airazum.com/roadmap',
     siteName: 'Razum AI',
@@ -14,7 +14,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Roadmap — Razum AI',
+    title: 'Планы развития — Razum AI',
     description: 'Дорожная карта Razum AI: что сделано, что в работе, что впереди.',
     images: ['/og-image.png'],
   },
@@ -38,10 +38,10 @@ const MILESTONES: Array<{ period: string; items: Array<{ status: Status; text: s
     items: [
       { status: 'done', text: 'Запуск razum-testnet-1 (Cosmos SDK + CometBFT)' },
       { status: 'done', text: 'Public RPC + REST endpoints через airazum.com' },
-      { status: 'done', text: 'Faucet 100 RZM/час с лимитами' },
+      { status: 'done', text: 'Раздача RZM 100 RZM/час с лимитами' },
       { status: 'done', text: 'Кастомные AI-агенты (галерея + конструктор)' },
       { status: 'done', text: 'Реферальная программа +30 запросов/день' },
-      { status: 'done', text: 'Расширенный block explorer на /chain' },
+      { status: 'done', text: 'Расширенный обозреватель блоков на /chain' },
       { status: 'done', text: 'PWA с офлайн-страницей' },
       { status: 'done', text: 'Светлая тема' },
       { status: 'in-progress', text: 'Resend для email-уведомлений' },
@@ -76,7 +76,7 @@ const MILESTONES: Array<{ period: string; items: Array<{ status: Status; text: s
     period: 'Q4 2026',
     items: [
       { status: 'planned', text: 'Mainnet launch (razum-1)' },
-      { status: 'planned', text: 'Public airdrop testnet-юзерам (5% supply)' },
+      { status: 'planned', text: 'Public раздача токенов testnet-юзерам (5% supply)' },
       { status: 'planned', text: 'DEX листинг RZM на Uniswap/PancakeSwap' },
       { status: 'planned', text: 'Партнёрство с 3+ российскими SaaS' },
       { status: 'planned', text: 'Open call для валидаторов' },
@@ -101,13 +101,13 @@ export default function RoadmapPage() {
           <Link href='/' className='font-bold text-xl'>Razum<span className='text-emerald-400'>AI</span></Link>
           <nav className='flex gap-6 text-sm text-white/70'>
             <Link href='/chat' className='hover:text-white'>Чат</Link>
-            <Link href='/docs' className='hover:text-white'>Docs</Link>
-            <Link href='/roadmap' className='text-white'>Roadmap</Link>
+            <Link href='/docs' className='hover:text-white'>Документация</Link>
+            <Link href='/roadmap' className='text-white'>Планы развития</Link>
           </nav>
         </div>
       </header>
       <section className='max-w-3xl mx-auto px-6 py-12'>
-        <h1 className='text-4xl font-bold mb-2'>Roadmap</h1>
+        <h1 className='text-4xl font-bold mb-2'>Планы развития</h1>
         <p className='text-white/60 mb-10'>Куда идёт Razum AI. Обновляется по мере выполнения. Хочешь повлиять? Пиши в <a href='https://t.me/razum_ai' className='text-emerald-300 underline'>Telegram</a>.</p>
 
         <div className='space-y-10'>
@@ -127,7 +127,7 @@ export default function RoadmapPage() {
         </div>
 
         <p className='text-xs text-white/40 mt-12 pt-6 border-t border-white/10'>
-          Last updated: 2026-05-14. Roadmap может корректироваться в зависимости от приоритетов и обратной связи.
+          Last updated: 2026-05-14. Планы развития может корректироваться в зависимости от приоритетов и обратной связи.
         </p>
       </section>
     </div>

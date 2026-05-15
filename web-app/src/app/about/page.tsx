@@ -28,7 +28,7 @@ export default function AboutPage() {
           <Link href='/' className='font-bold text-xl'>Razum<span className='text-emerald-400'>AI</span></Link>
           <nav className='flex gap-6 text-sm text-white/70'>
             <Link href='/chat' className='hover:text-white'>Чат</Link>
-            <Link href='/docs' className='hover:text-white'>Docs</Link>
+            <Link href='/docs' className='hover:text-white'>Документация</Link>
             <Link href='/about' className='text-white'>О нас</Link>
           </nav>
         </div>
@@ -54,7 +54,7 @@ export default function AboutPage() {
           <li><strong className='text-white'>Прозрачность.</strong> Status сети, метрики, токеномика — всё публично. Нет скрытых комиссий.</li>
           <li><strong className='text-white'>Децентрализация.</strong> Один человек или компания не должны контролировать всё. Майнеры, валидаторы — независимы.</li>
           <li><strong className='text-white'>Уважение приватности.</strong> Запросы не уходят в OpenAI, не продаются рекламодателям. Хранение в РФ.</li>
-          <li><strong className='text-white'>Честность.</strong> Public beta — это public beta. Не обещаем mainnet «через месяц» если знаем что нужно 6.</li>
+          <li><strong className='text-white'>Честность.</strong> Public beta — это открытое тестирование. Не обещаем mainnet «через месяц» если знаем что нужно 6.</li>
         </ul>
 
         <h2 className='text-2xl font-semibold mt-12 mb-4'>Команда</h2>

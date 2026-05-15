@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export const metadata = {
   title: 'Документация — Razum AI',
-  description: 'Архитектура Razum AI, как стать майнером, OpenAI-совместимый API, endpoints чейна razum-testnet-1, faucet, FAQ.',
+  description: 'Архитектура Razum AI, как стать майнером, OpenAI-совместимый API, endpoints чейна razum-testnet-1, раздача RZM, FAQ.',
   openGraph: {
     title: 'Документация — Razum AI',
     description: 'Технический справочник Razum AI: API, чейн, майнинг.',
@@ -31,9 +31,9 @@ export default function DocsPage() {
           <nav className="flex gap-6 text-sm text-white/70">
             <Link href="/chat" className="hover:text-white">Чат</Link>
             <Link href="/chain" className="hover:text-white">Чейн</Link>
-            <Link href="/faucet" className="hover:text-white">Faucet</Link>
+            <Link href="/раздача RZM" className="hover:text-white">Раздача RZM</Link>
             <Link href="/miner" className="hover:text-white">Майнинг</Link>
-            <Link href="/docs" className="text-white">Docs</Link>
+            <Link href="/docs" className="text-white">Документация</Link>
           </nav>
         </div>
       </header>
@@ -47,7 +47,7 @@ export default function DocsPage() {
           <a href="#chain" className="hover:text-white mr-4">Чейн</a>
           <a href="#api" className="hover:text-white mr-4">API</a>
           <a href="#miner" className="hover:text-white mr-4">Майнер</a>
-          <a href="#faucet" className="hover:text-white mr-4">Faucet</a>
+          <a href="#раздача RZM" className="hover:text-white mr-4">Раздача RZM</a>
           <a href="#faq" className="hover:text-white">FAQ</a>
         </nav>
 
@@ -164,16 +164,16 @@ node ~/.razum/miner.js`}
           <p className="text-white/80 text-sm mt-3">Подробная пошаговая инструкция со скриншотами: <Link href="/miner" className="text-emerald-300 underline">/miner</Link></p>
         </section>
 
-        <section id="faucet" className="mb-12">
-          <h2 className="text-2xl font-semibold mb-3">Faucet</h2>
+        <section id="раздача RZM" className="mb-12">
+          <h2 className="text-2xl font-semibold mb-3">Раздача RZM</h2>
           <p className="text-white/80">Раздача тестовых RZM для разработки и подключения кошельков.</p>
           <ul className="text-white/80 text-sm space-y-1 mt-2">
-            <li>UI: <Link href="/faucet" className="text-emerald-300 underline">/faucet</Link></li>
+            <li>UI: <Link href="/раздача RZM" className="text-emerald-300 underline">/раздача RZM</Link></li>
             <li>Дрип: 100 RZM (= 10¹¹ nrazum)</li>
             <li>Лимит: 1 раз в час на IP и на адрес</li>
           </ul>
           <pre className={code}>
-{`curl -X POST https://airazum.com/api/faucet \\
+{`curl -X POST https://airazum.com/api/раздача RZM \\
   -H 'Content-Type: application/json' \\
   -d '{"address":"razum1..."}'`}
           </pre>

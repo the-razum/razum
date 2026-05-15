@@ -31,7 +31,7 @@ export default async function AgentsPage() {
             <Link href='/chat' className='hover:text-white'>Чат</Link>
             <Link href='/agents' className='text-white'>Агенты</Link>
             <Link href='/miner' className='hover:text-white'>Майнинг</Link>
-            <Link href='/docs' className='hover:text-white'>Docs</Link>
+            <Link href='/docs' className='hover:text-white'>Документация</Link>
           </nav>
         </div>
       </header>

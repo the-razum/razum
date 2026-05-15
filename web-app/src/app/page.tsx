@@ -47,7 +47,7 @@ function JsonLd() {
           {
             '@type': 'Question',
             name: 'Можно ли зарабатывать, подключив свой компьютер?',
-            acceptedAnswer: { '@type': 'Answer', text: 'Да. Подключите Mac с Apple Silicon или PC с NVIDIA GPU и получайте RZM-токены за обработку AI-запросов.' },
+            acceptedAnswer: { '@type': 'Answer', text: 'Да. Подключите Mac (с чипом M1 и новее) или ПК с видеокартой NVIDIA и получайте RZM-токены за обработку AI-запросов.' },
           },
         ],
       },
@@ -74,8 +74,8 @@ function NavBar() {
           <Link href="/pricing" className="hover:text-text transition">Тарифы</Link>
           <Link href="/agents" className="hover:text-text transition">Агенты</Link>
           <Link href="/chain" className="hover:text-text transition">Чейн</Link>
-          <Link href="/faucet" className="hover:text-text transition">Faucet</Link>
-          <Link href="/docs" className="hover:text-text transition">Docs</Link>
+          <Link href="/раздача RZM" className="hover:text-text transition">Раздача RZM</Link>
+          <Link href="/docs" className="hover:text-text transition">Документация</Link>
           <Link href="/faq" className="hover:text-text transition">FAQ</Link>
           <Link href="/miner" className="hover:text-text transition">Майнерам</Link>
           <a href="https://t.me/razum_miners" target="_blank" rel="noopener noreferrer" className="hover:text-text transition">Telegram</a>
@@ -163,7 +163,7 @@ export default function Home() {
             </h1>
             <p className="text-text2 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
               Мощные AI-модели по цене чашки кофе. Qwen 3.5 и DeepSeek R1 —
-              всё работает на децентрализованной сети GPU по всему миру.
+              всё работает на сети компьютеров пользователей по всему миру.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -320,7 +320,7 @@ export default function Home() {
               <StepCard
                 num={2}
                 title="GPU обрабатывает"
-                desc="Запрос уходит на ближайший свободный компьютер с мощной видеокартой или Apple Silicon."
+                desc="Запрос уходит на ближайший свободный компьютер с мощной видеокартой или Mac M1+."
               />
               <StepCard
                 num={3}
@@ -424,7 +424,7 @@ export default function Home() {
               />
               <FaqItem
                 q="Можно ли зарабатывать на своём компьютере?"
-                a="Да! Подключите Mac с Apple Silicon (M1 и новее) или PC с NVIDIA GPU (RTX 3060+). Установка занимает 5 минут. Токены RZM начисляются за каждый обработанный запрос."
+                a="Да! Подключите Mac (M1 и новее) или ПК с видеокартой NVIDIA RTX 3060 и выше. Установка занимает 5 минут. Токены RZM начисляются за каждый обработанный запрос."
               />
               <FaqItem
                 q="Как оплатить подписку?"
@@ -470,11 +470,11 @@ export default function Home() {
                   <Link href="/pricing" className="block text-text2 text-sm hover:text-text transition">Тарифы</Link>
                   <Link href="/agents" className="block text-text2 text-sm hover:text-text transition">Агенты</Link>
                   <Link href="/chain" className="block text-text2 text-sm hover:text-text transition">Чейн (testnet)</Link>
-                  <Link href="/faucet" className="block text-text2 text-sm hover:text-text transition">Faucet</Link>
-                  <Link href="/docs" className="block text-text2 text-sm hover:text-text transition">Docs</Link>
+                  <Link href="/раздача RZM" className="block text-text2 text-sm hover:text-text transition">Раздача RZM</Link>
+                  <Link href="/docs" className="block text-text2 text-sm hover:text-text transition">Документация</Link>
                   <Link href="/faq" className="block text-text2 text-sm hover:text-text transition">FAQ</Link>
                   <Link href="/about" className="block text-text2 text-sm hover:text-text transition">О проекте</Link>
-                  <Link href="/roadmap" className="block text-text2 text-sm hover:text-text transition">Roadmap</Link>
+                  <Link href="/roadmap" className="block text-text2 text-sm hover:text-text transition">Планы развития</Link>
                   <Link href="/miner" className="block text-text2 text-sm hover:text-text transition">Майнерам</Link>
                 </div>
               </div>

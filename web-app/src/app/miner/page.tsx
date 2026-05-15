@@ -68,7 +68,7 @@ export default function MinerPage() {
             <strong>razum-testnet-1</strong> live
           </span>
           <Link href="/chain" className="text-emerald-300 hover:underline">статус чейна →</Link>
-          <Link href="/faucet" className="text-emerald-300 hover:underline">взять 100 RZM →</Link>
+          <Link href="/раздача RZM" className="text-emerald-300 hover:underline">взять 100 RZM →</Link>
           <span className="text-text2 ml-auto hidden md:inline">RPC: airazum.com/chain-rpc/</span>
         </div>
       </div>
@@ -142,7 +142,7 @@ export default function MinerPage() {
           <h2 className="text-2xl font-bold mb-6">Что нужно?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-5 rounded-xl border border-accent/20 bg-accent/5">
-              <div className="text-lg font-bold mb-3">Mac (Apple Silicon)</div>
+              <div className="text-lg font-bold mb-3">Mac (с чипом Apple M1, M2, M3, M4)</div>
               <div className="text-text2 text-sm space-y-1.5">
                 <div>Любой Mac с чипом M1 и новее:</div>
                 <div>MacBook Air, MacBook Pro, iMac, Mac Mini, Mac Studio, Mac Pro</div>
@@ -150,7 +150,7 @@ export default function MinerPage() {
               </div>
             </div>
             <div className="p-5 rounded-xl border border-border bg-surface">
-              <div className="text-lg font-bold mb-3">PC с видеокартой NVIDIA</div>
+              <div className="text-lg font-bold mb-3">ПК с видеокартой NVIDIA</div>
               <div className="text-text2 text-sm space-y-1.5">
                 <div>Видеокарта RTX 3060 и выше</div>
                 <div>Операционная система Linux (Ubuntu)</div>

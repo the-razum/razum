@@ -33,7 +33,7 @@ export default function BetaBanner() {
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981', animation: 'pulse 2s infinite' }} />
-        <strong style={{ color: 'white' }}>Public Beta</strong>
+        <strong style={{ color: 'white' }}>Открытое тестирование</strong>
       </span>
       <span style={{ opacity: 0.85 }}>
         Razum AI работает в testnet-режиме. Возможны перебои. RZM testnet не имеет рыночной стоимости.

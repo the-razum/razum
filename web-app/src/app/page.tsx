@@ -73,6 +73,7 @@ function NavBar() {
         <div className="hidden md:flex items-center gap-8 text-sm text-text2">
           <Link href="/pricing" className="hover:text-text transition">Тарифы</Link>
           <Link href="/agents" className="hover:text-text transition">Агенты</Link>
+          <Link href="/stats" className="hover:text-text transition">Статистика</Link>
           <Link href="/chain" className="hover:text-text transition">Чейн</Link>
           <Link href="/раздача RZM" className="hover:text-text transition">Раздача RZM</Link>
           <Link href="/docs" className="hover:text-text transition">Документация</Link>
